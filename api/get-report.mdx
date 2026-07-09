@@ -1,7 +1,7 @@
 ---
-title: "GET /guideline-reports/:id — Retrieve a Full Guideline Report"
+title: "Retrieve a Full Nova Guideline Report"
 sidebarTitle: "Get Report"
-description: "GET /guideline-reports/:id — returns the full result_json for a completed Nova guideline report, including decision, blockers, and evidence."
+description: "Fetch a guideline report by ID, including the full result with deployment decision, blockers, AI summary, evidence chains, and CMR recommendations."
 ---
 
 Use this endpoint to retrieve a guideline report by its ID. For reports that are still in progress, poll this endpoint until `status` reaches `done` or `failed` — once the job completes, the full `result` object is populated with the deployment decision, blockers, AI summary, evidence chains, and CMR recommendations. The example below shows a simple polling pattern you can use in automation scripts.
@@ -56,19 +56,23 @@ curl https://redp.app/api/v1/guideline-reports/rpt_01hx4k9m2n3p5q7r \
   "completedAt": "2024-11-14T09:38:47Z",
   "generatedBy": "jane.doe@example.com",
   "result": {
-    "metadata": { ... },
-    "aiSummary": { ... },
+    "metadata": { "...": "..." },
+    "aiSummary": { "...": "..." },
     "decision": {
       "value": "CONDITIONAL_GO",
       "productionRisk": "MEDIUM",
       "summary": "Release can proceed pending resolution of two open MR review blockers.",
       "requiredActions": ["Obtain approval on MR !4821", "Resolve failing integration test in pipeline #9902"]
     },
-    "blockers": [ ... ],
-    "releaseScope": { ... },
-    "cmrRecommendations": [ ... ],
-    "rollbackDependencies": [ ... ],
-    "evidenceQuality": { ... }
+    "blockers": ["..."],
+    "releaseScope": { "...": "..." },
+    "componentRelationships": { "...": "..." },
+    "evidenceChains": ["..."],
+    "cmrRecommendations": ["..."],
+    "combinedCmrTemplates": { "...": "..." },
+    "rollbackDependencies": ["..."],
+    "evidenceQuality": { "...": "..." },
+    "navigation": { "...": "..." }
   }
 }
 ```
@@ -137,22 +141,38 @@ curl https://redp.app/api/v1/guideline-reports/rpt_01hx4k9m2n3p5q7r \
       Describes the components and business capabilities included in this release. Contains `components` (array) and `businessCapabilities` (array).
     </ResponseField>
 
+    <ResponseField name="componentRelationships" type="object">
+      Describes dependency relationships between the components included in this release, used to identify cross-component risk.
+    </ResponseField>
+
+    <ResponseField name="evidenceChains" type="array">
+      The chains of evidence linking source artifacts (tickets, merge requests, pipelines) to specific guideline evaluations and the resulting decision.
+    </ResponseField>
+
     <ResponseField name="cmrRecommendations" type="array">
       Recommended Change Management Records for this release, derived from the collected evidence and guideline evaluation.
     </ResponseField>
 
+    <ResponseField name="combinedCmrTemplates" type="object">
+      Pre-populated CMR template content combining evidence from all evaluated components, ready for submission to your change management system.
+    </ResponseField>
+
     <ResponseField name="rollbackDependencies" type="array">
-      Dependencies that must be considered when rolling back this release, such as database migrations or downstream service contracts.
+      Dependencies that must be considered when rolling back this release, such as schema changes or downstream service contracts.
     </ResponseField>
 
     <ResponseField name="evidenceQuality" type="object">
       Metrics describing the completeness of collected evidence. Fields include `ticketsInScope`, `ticketsWithMrLinks`, `mrDiffFetchSuccess`, and `unresolvedMrSample`.
     </ResponseField>
+
+    <ResponseField name="navigation" type="object">
+      Structural metadata used to navigate between sections of the report, such as links between blockers and their supporting evidence chains.
+    </ResponseField>
   </Expandable>
 </ResponseField>
 
 <Tip>
-  If `status` is `failed`, check the `errorMessage` field on the response for the stage at which processing stopped and the reason for the failure. Common causes include unreachable GitLab instances, expired integration tokens, and malformed release configurations.
+  If `status` is `failed`, check the `errorMessage` field on the response for the reason the job stopped. Common causes include unreachable integrations, expired tokens, and malformed release configurations.
 </Tip>
 
 ## Error Responses

@@ -1,7 +1,7 @@
 ---
-title: "Rollback Dependency Analysis for Nova Releases"
+title: "Rollback Dependency Analysis for Nova Release Deployments"
 sidebarTitle: "Rollback Dependencies"
-description: "How redp analyzes code rollback dependencies and release coupling to produce a safe rollback sequence for Nova deployments."
+description: "How redp analyzes code rollback dependencies and release coupling to map component entanglements and produce a safe rollback sequence."
 ---
 
 When a deployment goes wrong, the instinct is to revert the most recent change. But in a multi-component release, reverting one component without reverting its dependents can leave the system in a broken state that is harder to recover from than the original failure. redp performs rollback dependency analysis on every release report to map out which components are entangled, so that if you need to revert anything, you know exactly what else must move with it.
@@ -102,5 +102,5 @@ Add a manual hint when:
 If redp has detected a dependency that you believe is incorrect, you can mark it as **overridden** in the dependency panel with a rationale. Overridden dependencies are shown in the summary with a strikethrough and a note indicating that a release manager reviewed and dismissed them. This preserves the audit trail without affecting the CMR templates.
 
 <Warning>
-  Always review the rollback dependency summary before approving a NO_GO waiver. Reverting one component to unblock a release may silently break another component that depends on it — a failure that may not surface until after the change window closes. If any component in the waiver has dependents listed in the rollback dependency summary, confirm with those component owners before proceeding.
+  Always review the rollback dependency summary before approving a No-Go waiver. Reverting one component to unblock a release may silently break another component that depends on it — a failure that may not surface until after the change window closes. If any component in the waiver has dependents listed in the rollback dependency summary, confirm with those component owners before proceeding.
 </Warning>

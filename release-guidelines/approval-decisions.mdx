@@ -1,7 +1,7 @@
 ---
 title: "Understanding Approval Decisions: GO, CONDITIONAL_GO, NO_GO"
 sidebarTitle: "Approval Decisions"
-description: "Learn how redp produces GO, CONDITIONAL_GO, NO_GO, and UNKNOWN decisions from deterministic rules and evidence."
+description: "Learn how redp produces GO, CONDITIONAL_GO, NO_GO, and UNKNOWN decisions from deterministic rule evaluation and what each decision means for your release."
 ---
 
 The approval decision in a guideline report is produced by a deterministic rule evaluator — not by AI. redp evaluates each approval rule against the collected evidence and applies fixed logic to derive the result. Every rule either passes, raises a condition, or raises a blocker. The overall decision is the most severe outcome across all rules. This means that given the same evidence and the same rule set, redp will always produce the same decision: the process is reproducible and auditable.

@@ -1,5 +1,5 @@
 ---
-title: "CMR Group Deployment Scopes and Rollout Order"
+title: "CMR Group Deployment Scopes and Rollout Sequencing"
 sidebarTitle: "Grouping"
 description: "How redp groups Nova components into CMR batches — deploy-together, coordinate-validate, and ordered rollout — based on component relationships."
 ---
@@ -68,7 +68,7 @@ redp constructs the rollout order from a directed dependency graph:
 
 ### Example rollout order
 
-```
+```text
 Rollout order for Release 24.11.0
 ──────────────────────────────────
 Position 1  →  infra-config-sync       (LOW, GA)

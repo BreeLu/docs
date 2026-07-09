@@ -1,7 +1,7 @@
 ---
 title: "Nova Release Guideline Reports in redp"
 sidebarTitle: "Overview"
-description: "redp generates structured guideline reports for Nova releases, combining evidence, component analysis, and deterministic approval decisions into one auditable page."
+description: "redp generates structured guideline reports for Nova releases, combining evidence from Jira, GitLab, and wiki with deterministic approval rules into one auditable report."
 ---
 
 A guideline report is redp's structured release readiness assessment for a Nova release. When you trigger a report, redp collects evidence from Jira tickets, GitLab merge requests, and wiki pages, evaluates that evidence against a set of approval rules, and produces a deterministic decision telling you whether the release is ready to proceed. Every report captures a point-in-time snapshot of all evidence, so you can audit exactly what was known at decision time.
@@ -15,40 +15,40 @@ A guideline report is redp's structured release readiness assessment for a Nova 
 A completed guideline report is organised into the following sections:
 
 <CardGroup cols={2}>
-  <Card title="Header & overall decision" icon="flag">
+  <Card title="Header & overall decision" icon="flag" href="./approval-decisions">
     The release name, version, project, and the top-level approval decision: GO, CONDITIONAL_GO, NO_GO, or UNKNOWN.
   </Card>
-  <Card title="AI summary" icon="sparkles">
+  <Card title="AI summary" icon="sparkles" href="./approval-decisions">
     A draft, AI-generated narrative that explains the decision in plain language. Marked as draft and requires human review before acting on it.
   </Card>
-  <Card title="Approval decision detail" icon="circle-check">
+  <Card title="Approval decision detail" icon="circle-check" href="./approval-decisions">
     The full list of rules that were evaluated, each with its result, the evidence it was evaluated against, and any conditions or blockers it raised.
   </Card>
-  <Card title="Known issues" icon="triangle-exclamation">
+  <Card title="Known issues" icon="triangle-exclamation" href="./blockers-and-conditions">
     Issues already logged against the release that are acknowledged and tracked, distinct from new blockers surfaced by rule evaluation.
   </Card>
-  <Card title="Blockers & conditions" icon="ban">
-    A structured list of everything preventing or qualifying a GO decision, grouped by approval impact level (BLOCKER, CONDITION, WARNING, INFO) and risk area.
+  <Card title="Blockers & conditions" icon="ban" href="./blockers-and-conditions">
+    A structured list of everything preventing or qualifying a GO decision, grouped by approval impact level (BLOCKER, CONDITION, WARNING, INFO) and risk level.
   </Card>
-  <Card title="Release scope & rollout" icon="layer-group">
+  <Card title="Release scope & rollout" icon="layer-group" href="./generating-a-report">
     The set of components included in the report, the deploy plan, and the intended rollout strategy.
   </Card>
-  <Card title="Component collaboration" icon="users">
+  <Card title="Component collaboration" icon="users" href="./generating-a-report">
     Cross-component dependencies and the teams responsible for each component in the release.
   </Card>
-  <Card title="Evidence chains" icon="link">
+  <Card title="Evidence chains" icon="link" href="./generating-a-report">
     The full chain of evidence collected for each component — Jira tickets, GitLab MRs, and wiki pages — showing how each piece of evidence maps to an approval rule.
   </Card>
-  <Card title="CMR strategy" icon="sitemap">
+  <Card title="CMR strategy" icon="sitemap" href="./generating-a-report">
     The recommended Change Management Record grouping strategy for the release, showing how components are grouped into CMRs.
   </Card>
-  <Card title="Combined CMR templates" icon="file-lines">
+  <Card title="Combined CMR templates" icon="file-lines" href="./generating-a-report">
     Ready-to-use CMR templates generated from the release scope and CMR strategy, combining details from all included components.
   </Card>
-  <Card title="Rollback dependencies" icon="rotate-left">
+  <Card title="Rollback dependencies" icon="rotate-left" href="./generating-a-report">
     Components and external systems that must be considered if the release needs to be rolled back, including ordering constraints.
   </Card>
-  <Card title="Evidence quality" icon="chart-bar">
+  <Card title="Evidence quality" icon="chart-bar" href="./generating-a-report">
     A per-component quality score indicating how complete and recent the collected evidence is. Low quality scores can explain an UNKNOWN decision.
   </Card>
 </CardGroup>

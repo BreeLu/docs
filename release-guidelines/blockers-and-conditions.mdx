@@ -1,7 +1,7 @@
 ---
 title: "Release Blockers, Conditions, and Required Actions"
 sidebarTitle: "Blockers & Conditions"
-description: "How to read, resolve, and waive blockers and conditions in a redp guideline report."
+description: "How to read, prioritise, and resolve blockers and conditions in a redp guideline report, including risk levels, required actions, waivers, and sign-off."
 ---
 
 When redp evaluates approval rules against collected evidence, each finding is classified by how much it affects the release decision. **Blockers** are findings that prevent a release from proceeding — they produce a NO_GO decision and must be resolved before the release can move forward. **Conditions** are findings that qualify a release — they produce a CONDITIONAL_GO decision and require a specific action or owner sign-off before the release is fully cleared. Understanding the difference between these two categories, and the two informational levels below them, is the key to reading and acting on a guideline report efficiently.
@@ -36,11 +36,11 @@ When redp evaluates approval rules against collected evidence, each finding is c
   **What to do:** No action is required. Read info items if you want the full picture of what was evaluated.
 </Accordion>
 
-## Risk areas
+## Risk levels
 
-Each finding is also tagged with a risk area indicating the domain of concern. Risk areas help you prioritise which blockers and conditions to address first.
+Each finding is tagged with a risk level indicating the severity of potential impact. Risk levels help you prioritise which blockers and conditions to address first when multiple findings are present.
 
-| Risk area | What it means |
+| Risk level | What it means |
 |---|---|
 | **LOW** | Minimal potential impact; the finding relates to minor gaps or advisory checks. |
 | **MEDIUM** | Moderate potential impact; the finding relates to process compliance or completeness gaps that carry some risk. |
@@ -51,7 +51,7 @@ Each finding is also tagged with a risk area indicating the domain of concern. R
 
 The **Blockers & conditions** section of a guideline report presents findings in a structured table. Here is an example of what a blockers table looks like:
 
-| Risk area | Description | Required action |
+| Risk level | Description | Required action |
 |---|---|---|
 | HIGH | Component `payments-api` has open Jira tickets in `IN_PROGRESS` status with no linked MR. | Link all in-progress tickets to a merged or approved MR before release, or move tickets to `DONE`. |
 | CRITICAL | Security review ticket `SEC-4421` has not been approved. | Obtain security team approval on `SEC-4421` and update the ticket status to `APPROVED`. |

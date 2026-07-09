@@ -1,7 +1,7 @@
 ---
-title: "CMR Strategy Overview for Nova Releases"
+title: "CMR Strategy Overview for Nova Release Deployments"
 sidebarTitle: "Overview"
-description: "How redp generates CMR strategy recommendations — grouping components, assigning risk, and producing rollout and rollback sequences."
+description: "How redp generates CMR strategy recommendations — grouping Nova components, assigning risk levels, and producing rollout and rollback sequences."
 ---
 
 A CMR (Change Management Record) is the formal change record required before any Nova component reaches production. When a release spans multiple components, you need more than individual CMRs — you need a strategy that sequences deployments safely, groups tightly coupled components, and prepares a coherent rollback path. redp analyzes component relationships, evidence quality, and runtime dependencies to produce a complete CMR strategy recommendation for every release report you generate.

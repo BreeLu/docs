@@ -1,10 +1,10 @@
 ---
-title: "POST /guideline-reports — Create a Nova Guideline Report"
+title: "Create a Nova Guideline Report"
 sidebarTitle: "Create Report"
-description: "POST /guideline-reports — triggers generation of a Nova release guideline report. Accepts projectId, releaseId, scope, and optional componentIds."
+description: "Trigger a new guideline report for a Nova release. The job queues immediately and returns a report ID you can poll until the evaluation is complete."
 ---
 
-Use this endpoint to trigger a new guideline report for a Nova release. The API queues a background job that collects evidence from Jira and GitLab, evaluates each release guideline, and produces a structured `result_json` with a deployment decision, blockers, and CMR recommendations. The response returns immediately with a report ID and a `queued` status — use [Get Report](/api/get-report) to poll for the completed result.
+Use this endpoint to trigger a new guideline report for a Nova release. The API queues a background job that collects evidence, evaluates each release guideline, and produces a structured result with a deployment decision, blockers, and CMR recommendations. The response returns immediately with a report ID and a `queued` status — use [Get Report](/api/get-report) to poll for the completed result.
 
 **Endpoint**
 
@@ -28,15 +28,15 @@ POST https://redp.app/api/v1/guideline-reports
   The Nova project ID. All evidence collection and guideline evaluation is scoped to this project.
 </ParamField>
 
-<ParamField body="releaseId" type="string" required>
-  The release ID to generate the report for. Required if `version` is not provided.
+<ParamField body="releaseId" type="string">
+  The release ID to generate the report for. Required if `version` is not provided. When both `releaseId` and `version` are supplied, `releaseId` takes precedence.
 </ParamField>
 
-<ParamField body="version" type="string" required>
-  The release version string (for example, `"2024.11.0"`). Required if `releaseId` is not provided. When both are supplied, `releaseId` takes precedence.
+<ParamField body="version" type="string">
+  The release version string (for example, `"2024.11.0"`). Required if `releaseId` is not provided.
 </ParamField>
 
-<ParamField body="scope" type="string" required>
+<ParamField body="scope" type="string">
   Controls which components are included in the report. Accepted values:
 
   - `all` — include every component in the release
@@ -48,7 +48,7 @@ POST https://redp.app/api/v1/guideline-reports
 </ParamField>
 
 <ParamField body="forceRefresh" type="boolean">
-  When `true`, redp discards any cached Jira tickets and GitLab MR diffs and re-collects all evidence from source systems. Defaults to `false`.
+  When `true`, redp discards any cached evidence and re-collects all data from source systems. Defaults to `false`.
 </ParamField>
 
 <ParamField body="generatedBy" type="string">

@@ -1,10 +1,10 @@
 ---
-title: "POST /guideline-reports/:id/refresh — Refresh a Guideline Report"
+title: "Refresh a Nova Guideline Report"
 sidebarTitle: "Refresh Report"
-description: "POST /guideline-reports/:id/refresh — re-runs a guideline report, optionally forcing fresh evidence collection from Jira and GitLab."
+description: "Re-run a guideline report for a Nova release, optionally overriding scope or forcing fresh evidence collection. Returns a new report ID immediately."
 ---
 
-Use this endpoint to regenerate a guideline report — for example, after fixing a broken GitLab token, resolving outstanding Jira tickets, or merging a required MR that was previously open. Refreshing queues a new background job using the same project, release, and scope as the original report, and returns a new report ID immediately. The new job progresses through the standard `queued` → `running` → `done` lifecycle, which you can track using [Get Report](/api/get-report).
+Use this endpoint to regenerate a guideline report — for example, after resolving outstanding tickets, merging a required MR, or correcting the component scope. Refreshing queues a new background job and returns a new report ID immediately. You can override any of the original request parameters; fields you omit are inherited from the original report. The new job progresses through the standard `queued` → `running` → `done` lifecycle, which you can track using [Get Report](/api/get-report).
 
 **Endpoint**
 
@@ -20,8 +20,28 @@ POST https://redp.app/api/v1/guideline-reports/:id/refresh
 
 ## Request Body
 
+<ParamField body="projectId" type="string">
+  Override the project ID for the new report. If omitted, inherited from the original report.
+</ParamField>
+
+<ParamField body="releaseId" type="string">
+  Override the release ID for the new report. Required if `version` is not provided and you want to change the target release. If omitted, inherited from the original report.
+</ParamField>
+
+<ParamField body="version" type="string">
+  Override the release version string for the new report. Required if `releaseId` is not provided and you want to change the target release. If omitted, inherited from the original report.
+</ParamField>
+
+<ParamField body="scope" type="string">
+  Override the component scope. Accepted values: `all` or `custom`. If omitted, inherited from the original report.
+</ParamField>
+
+<ParamField body="componentIds" type="array">
+  An array of component ID strings. Required when `scope` is `custom`; ignored when `scope` is `all`.
+</ParamField>
+
 <ParamField body="forceRefresh" type="boolean">
-  When `true`, redp discards all cached Jira tickets and GitLab MR diffs and re-collects evidence fresh from source systems. Defaults to `false`, which reuses any evidence that was successfully cached during the original run.
+  When `true`, redp discards all cached evidence and re-collects data fresh from source systems. Defaults to `false`, which reuses any evidence that was successfully cached during the original run.
 </ParamField>
 
 <ParamField body="generatedBy" type="string">
@@ -65,19 +85,19 @@ A new report job has been created. Use the returned `id` to poll for the result.
 </ResponseField>
 
 <ResponseField name="projectId" type="string">
-  Inherited from the original report.
+  The project ID used for this report run.
 </ResponseField>
 
 <ResponseField name="releaseId" type="string">
-  Inherited from the original report.
+  The release ID used for this report run.
 </ResponseField>
 
 <ResponseField name="version" type="string">
-  Inherited from the original report.
+  The release version string used for this report run.
 </ResponseField>
 
 <ResponseField name="scope" type="string">
-  Inherited from the original report: `all` or `custom`.
+  The component scope used for this report run: `all` or `custom`.
 </ResponseField>
 
 <ResponseField name="createdAt" type="string">
@@ -89,7 +109,7 @@ A new report job has been created. Use the returned `id` to poll for the result.
 </Note>
 
 <Tip>
-  Use `forceRefresh: true` after rotating a GitLab access token or fixing a GitLab integration permission issue. This ensures that MR diffs which previously returned `FETCH_FAILED` are re-fetched rather than served from the failed cache entry.
+  Use `forceRefresh: true` after rotating an access token or fixing an integration permission issue to ensure previously failed evidence fetches are retried rather than skipped.
 </Tip>
 
 ## Error Responses

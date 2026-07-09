@@ -1,7 +1,7 @@
 ---
-title: "Combined CMR Templates: Description, Change Plan, and Rollback Plan"
+title: "Pre-filled Combined CMR Templates for Nova Deployments"
 sidebarTitle: "CMR Templates"
-description: "How redp generates pre-filled CMR templates for each deployment group, including change plan, test plan, and rollback plan."
+description: "How redp generates pre-filled CMR templates for each deployment group, covering the change plan, test plan, rollback plan, and MR list."
 ---
 
 For every CMR group in a release report, redp generates a pre-filled CMR template that you can copy directly into your change management system. Instead of writing descriptions, change steps, and rollback procedures from scratch on the day of deployment, you start with a structured draft that reflects the actual components, merge requests, and dependencies in the release. This reduces the manual work for release managers and lowers the risk of missing a step under time pressure.
@@ -37,7 +37,7 @@ You should review the description for accuracy before submitting the CMR. If a c
 
 The change plan is an ordered list of deployment steps generated from the rollout order and each component's deploy options. A typical change plan looks like:
 
-```
+```text
 Change plan — Group 2: payments-service + payments-db-migrator
 
 1. Confirm payments-service is healthy in staging (automated PDV check passed)
@@ -66,7 +66,7 @@ The test plan lists the validation steps that must pass before the CMR can be cl
 
 A test plan entry includes the validation action, the expected result, and the owner responsible for confirming the result. Example:
 
-```
+```text
 Test plan — Group 2: payments-service + payments-db-migrator
 
 1. Verify database migration applied cleanly
@@ -100,7 +100,7 @@ For components with a **standard** rollback mode, the plan includes the revert c
 
 Example rollback plan for a group with mixed rollback modes:
 
-```
+```text
 Rollback plan — Group 2: payments-service + payments-db-migrator
 
 payments-service (rollback mode: standard)
@@ -122,7 +122,7 @@ payments-db-migrator (rollback mode: forward-fix-only)
 
 The MR list section enumerates the GitLab merge requests included in the deployment group. redp collects MRs from the evidence chains associated with each component's Jira tickets. The list is formatted for direct inclusion in your change management system:
 
-```
+```text
 MR list — Group 2: payments-service + payments-db-migrator
 
 payments-service
