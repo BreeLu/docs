@@ -1,0 +1,78 @@
+---
+title: "Core Concepts in redp Release Management"
+sidebarTitle: "Key Concepts"
+description: "Understand the key terms and concepts in redp: releases, components, CMRs, evidence, and approval decisions."
+---
+
+Before diving into redp workflows, it helps to understand the core building blocks the platform is built around. Each concept below maps directly to something you will encounter when planning, evaluating, or approving a Nova release.
+
+<AccordionGroup>
+  <Accordion title="Release" icon="tag">
+    A **Release** is a versioned Nova release tracked in redp. It serves as the top-level container for everything associated with a deployment: the deploy plan, component list, guideline reports, CMRs, and evidence. Every release has a unique identifier and a lifecycle status (e.g. planning, in review, approved, deployed).
+
+    You start every redp workflow by opening a release.
+  </Accordion>
+
+  <Accordion title="Deploy Plan" icon="list-check">
+    A **Deploy Plan** is the structured set of packages, CMRs, and owner assignments that make up a release. It defines which components are being deployed, which teams own them, and how they are grouped into change management records. The deploy plan is the source of truth for report scoping — redp evaluates only the components included in the active deploy plan unless you narrow the scope manually.
+  </Accordion>
+
+  <Accordion title="Component" icon="cube">
+    A **Component** represents a single Nova service, library, or infrastructure element included in a release. Each component carries three key attributes that drive rule evaluation:
+
+    - **Risk tier** — a classification (e.g. critical, high, standard) that determines which readiness rules apply and how strictly they are enforced.
+    - **Rollback mode** — whether the component supports automated rollback, manual rollback, or is rollback-ineligible.
+    - **Owner** — the team or individual responsible for sign-off on the component's readiness.
+
+    Component relationships (dependencies between components) also feed into CMR grouping and rollback dependency analysis.
+  </Accordion>
+
+  <Accordion title="CMR (Change Management Record)" icon="file-contract">
+    A **CMR** (Change Management Record) is the formal change record that authorises a deployment in your organisation's change management process. In redp, CMRs are generated from the deploy plan, grouped by logical deployment unit, and populated with evidence and rollback information from the guideline report. redp can generate combined CMR templates when multiple components share a single deployment window, reducing the overhead of filing individual records.
+  </Accordion>
+
+  <Accordion title="Phase Rollout" icon="arrows-split-up-and-left">
+    A **Phase Rollout** is a staged deployment plan that divides the release into sequential rollout groups, each containing one or more steps. Each step references specific components and CMRs, and carries a status (pending, in progress, complete, blocked). Phase rollouts allow you to track deployment progress incrementally and ensure that earlier phases are validated before later phases begin.
+  </Accordion>
+
+  <Accordion title="Guideline Report" icon="clipboard-check">
+    A **Guideline Report** is the structured release readiness report that redp generates for a release. It evaluates every rule in your Nova guideline policy against the collected evidence, produces an AI-assisted release summary, and closes with a deterministic approval decision (GO, CONDITIONAL\_GO, NO\_GO, or UNKNOWN). Guideline reports are immutable once generated — re-running the report creates a new version, preserving the full audit history.
+  </Accordion>
+
+  <Accordion title="Evidence" icon="magnifying-glass">
+    **Evidence** is any artefact that supports or contradicts a component's readiness for deployment. redp collects evidence from two primary sources:
+
+    - **Jira tickets** — stories, bugs, and tasks linked to the release or component.
+    - **GitLab merge requests** — MRs merged into the release branch or tagged to the release.
+    - **Wiki references** — linked documentation or runbooks referenced in the deploy plan.
+
+    Evidence is assessed for quality (completeness, recency, relevance) and coverage (how many components have sufficient evidence) and the results feed directly into rule evaluation.
+  </Accordion>
+
+  <Accordion title="Evidence Snapshot" icon="camera">
+    An **Evidence Snapshot** is an immutable record of all evidence collected at the moment a guideline report is generated. It captures the state of every Jira ticket and GitLab MR at that point in time, ensuring that the approval decision is always traceable to a concrete, timestamped set of artefacts — even if the upstream tickets or MRs are subsequently modified.
+  </Accordion>
+
+  <Accordion title="Approval Decision" icon="circle-check">
+    An **Approval Decision** is the deterministic outcome produced by evaluating all readiness rules in a guideline report. It is one of four values:
+
+    | Decision | Meaning |
+    |---|---|
+    | **GO** | All rules pass. The release is ready to proceed. |
+    | **CONDITIONAL\_GO** | One or more conditions require acknowledgement or a waiver before proceeding. |
+    | **NO\_GO** | One or more blocking rules prevent the release from proceeding. |
+    | **UNKNOWN** | Evidence is incomplete or the report is still processing. |
+
+    The decision is computed automatically — it cannot be manually set. You influence the outcome by resolving blockers, providing missing evidence, or filing a waiver.
+  </Accordion>
+
+  <Accordion title="Waiver" icon="shield-halved">
+    A **Waiver** is a documented exception that overrides a conditional or blocking rule for a specific release. When a rule cannot be fully satisfied but the risk is understood and accepted, a release manager or component owner files a waiver with a written justification. Waivers are tracked in the guideline report and included in the evidence snapshot, so the decision remains fully auditable even when exceptions are granted.
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+- [Quickstart](/quickstart) — generate your first guideline report.
+- [Release Guidelines Overview](/release-guidelines/overview) — learn how rules are structured and evaluated.
+- [CMR Strategy](/cmr/overview) — understand how redp groups components into CMRs and generates templates.

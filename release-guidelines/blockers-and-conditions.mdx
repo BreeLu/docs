@@ -1,0 +1,64 @@
+---
+title: "Release Blockers, Conditions, and Required Actions"
+sidebarTitle: "Blockers & Conditions"
+description: "How to read, resolve, and waive blockers and conditions in a redp guideline report."
+---
+
+When redp evaluates approval rules against collected evidence, each finding is classified by how much it affects the release decision. **Blockers** are findings that prevent a release from proceeding — they produce a NO_GO decision and must be resolved before the release can move forward. **Conditions** are findings that qualify a release — they produce a CONDITIONAL_GO decision and require a specific action or owner sign-off before the release is fully cleared. Understanding the difference between these two categories, and the two informational levels below them, is the key to reading and acting on a guideline report efficiently.
+
+<Note>
+  Every blocker and condition in the report includes the evidence source that triggered it — the specific Jira ticket, GitLab MR, or wiki page that the rule evaluated when it raised the finding. This makes it straightforward to navigate directly to the artefact that needs attention.
+</Note>
+
+## Approval impact levels
+
+<Accordion title="BLOCKER — must be resolved before release">
+  A BLOCKER finding means a rule evaluated evidence and determined that a fundamental release requirement is not met. The release decision is set to NO_GO while any blocker remains unresolved.
+
+  **What to do:** Identify the underlying artefact (ticket, MR, or wiki page) shown in the evidence source for the blocker. Fix the issue in that artefact, then regenerate the report. Waivers are not available for blockers under normal circumstances. In exceptional cases only, a release manager may grant an exception — this must be documented and approved outside of redp before proceeding.
+</Accordion>
+
+<Accordion title="CONDITION — required action or sign-off needed">
+  A CONDITION finding means a rule found evidence that is present but incomplete or qualified in a way that requires further action before the release is unconditionally approved. The release decision is CONDITIONAL_GO while conditions remain open.
+
+  **What to do:** Read the required action attached to the condition — it describes exactly what needs to happen. Either complete the required action and regenerate the report, or obtain owner sign-off or a waiver from the release manager to clear the condition without completing the action. See [Approval Decisions](./approval-decisions) for details on waivers and sign-off.
+</Accordion>
+
+<Accordion title="WARNING — should review; does not block release">
+  A WARNING finding means a rule detected something worth paying attention to, but it does not meet the threshold for a condition or blocker. Warnings do not affect the overall approval decision.
+
+  **What to do:** Review the warning and its evidence source. Use your judgement about whether further action is needed. Warnings are surfaced so that release owners and managers have full visibility — they are not ignored by default, but they also do not require a formal response before the release can proceed.
+</Accordion>
+
+<Accordion title="INFO — informational only">
+  An INFO finding provides context about the release state with no implied action required. Info items are often rule outputs confirming that something was checked and found acceptable, or supplementary context that may be relevant to the release team.
+
+  **What to do:** No action is required. Read info items if you want the full picture of what was evaluated.
+</Accordion>
+
+## Risk areas
+
+Each finding is also tagged with a risk area indicating the domain of concern. Risk areas help you prioritise which blockers and conditions to address first.
+
+| Risk area | What it means |
+|---|---|
+| **LOW** | Minimal potential impact; the finding relates to minor gaps or advisory checks. |
+| **MEDIUM** | Moderate potential impact; the finding relates to process compliance or completeness gaps that carry some risk. |
+| **HIGH** | Significant potential impact; the finding relates to quality, security, or operational readiness gaps that require prompt attention. |
+| **CRITICAL** | Severe potential impact; the finding relates to safety, compliance, or fundamental release integrity. Findings at this level are almost always BLOCKERs. |
+
+## Example blockers table
+
+The **Blockers & conditions** section of a guideline report presents findings in a structured table. Here is an example of what a blockers table looks like:
+
+| Risk area | Description | Required action |
+|---|---|---|
+| HIGH | Component `payments-api` has open Jira tickets in `IN_PROGRESS` status with no linked MR. | Link all in-progress tickets to a merged or approved MR before release, or move tickets to `DONE`. |
+| CRITICAL | Security review ticket `SEC-4421` has not been approved. | Obtain security team approval on `SEC-4421` and update the ticket status to `APPROVED`. |
+| MEDIUM | Release notes wiki page is missing for `notifications-service`. | Create and publish the release notes page linked from the release ticket before proceeding. |
+
+## Required actions
+
+Every CONDITION and BLOCKER finding includes one or more **required actions** — specific, actionable instructions generated from the rule's template. Required actions tell you exactly what to do to resolve the finding: which artefact to update, what state it needs to reach, and (where applicable) who needs to approve it.
+
+Required actions are generated deterministically from rule templates, so they are consistent across reports for the same rule type. When you resolve a required action — by updating the underlying artefact in Jira, GitLab, or your wiki — regenerate the report using `forceRefresh` to re-collect the latest evidence and confirm the finding is cleared.

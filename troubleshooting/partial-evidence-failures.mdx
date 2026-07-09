@@ -1,0 +1,101 @@
+---
+title: "Handling Partial Evidence Failures in redp Reports"
+sidebarTitle: "Evidence Failures"
+description: "What to do when redp reports FETCH_FAILED, MISSING, or PARTIAL evidence — causes, impact on decisions, and how to fix them."
+---
+
+redp is designed to produce useful reports even when some evidence collection fails. Rather than blocking the entire report on a single source failure, redp continues generating with whatever evidence it could collect and records the gaps in the evidence quality section. This means you can still act on a partial report — but you need to understand what is missing and whether the gaps affect the trustworthiness of the decision.
+
+## Failure types
+
+<AccordionGroup>
+  <Accordion title="FETCH_FAILED — external API call failed">
+    **What it means**
+
+    redp attempted to call the Jira or GitLab API and the request did not succeed. The evidence for that item was not collected.
+
+    **Common causes**
+    - Jira or GitLab token has expired or been revoked
+    - The token does not have read permission for the target project or repository
+    - The external API returned a rate-limit response (HTTP 429)
+    - A network error interrupted the request before a response was received
+    - The repository or project is private and the token lacks access
+
+    **Impact on the approval decision**
+
+    `FETCH_FAILED` on a small number of low-risk MRs may have no effect on the decision. `FETCH_FAILED` on MRs from critical or high-risk components may cause redp to downgrade the decision to `CONDITIONAL_GO` or `UNKNOWN`, because it cannot evaluate the change scope for those components.
+
+    **How to resolve it**
+
+    1. Check the evidence quality section to identify which sources or MR URLs failed.
+    2. Confirm the Jira or GitLab token is valid and has not expired.
+    3. Confirm the token has `read_api` scope for all component repositories.
+    4. Regenerate the report with `forceRefresh=true` once access is restored.
+  </Accordion>
+
+  <Accordion title="MISSING — expected evidence was not found">
+    **What it means**
+
+    redp connected to the source successfully but the expected data was not there. For example, the release JQL returned zero tickets, a ticket had no description or comments, or no MR links were found anywhere on a ticket.
+
+    **Common causes**
+    - The release JQL or fix version is misconfigured and does not match any tickets
+    - Tickets exist but have not had MR links added yet
+    - The release is very early in its lifecycle and work has not been committed
+
+    **Impact on the approval decision**
+
+    A `MISSING` status for Jira tickets (zero tickets in scope) means the report has no evidence base at all and is likely to return `UNKNOWN`. `MISSING` MR links on individual tickets contribute to low MR coverage, which may trigger an evidence risk and a `CONDITIONAL_GO`.
+
+    **How to resolve it**
+
+    1. Verify the release JQL definition with your release manager — check for fix version spelling mismatches.
+    2. Ask developers to add MR links to their Jira tickets, preferably as remote links rather than free-text references.
+    3. Regenerate the report once the source data is updated.
+  </Accordion>
+
+  <Accordion title="PARTIAL — some evidence collected, not all">
+    **What it means**
+
+    redp collected part of the evidence for an item but not all of it. The most common case is an MR where the detail record was fetched successfully but the diff request failed. redp records what it has and notes what is missing.
+
+    **Common causes**
+    - The MR detail API succeeded but the diff API returned an error (e.g., diff too large, timeout)
+    - Jira ticket data was collected but comments or remote links could not be fetched
+    - A GitLab API partially responded before a timeout
+
+    **Impact on the approval decision**
+
+    `PARTIAL` evidence reduces the depth of redp's analysis for the affected item. If diffs are missing for several MRs, redp cannot assess change volume or file scope accurately. This may limit the confidence of the decision without necessarily changing the outcome.
+
+    **How to resolve it**
+
+    1. Check which items show `PARTIAL` status in the evidence quality section.
+    2. If MR diffs are the missing piece, verify that the MR is accessible to the GitLab token and that the diff is not unusually large.
+    3. Regenerate with `forceRefresh=true` to retry collection.
+  </Accordion>
+</AccordionGroup>
+
+## Steps to recover from a failed report
+
+<Steps>
+  <Step title="Check the evidence quality section">
+    Open the report and navigate to the evidence quality section. Identify which metrics are low and which items show `FETCH_FAILED`, `MISSING`, or `PARTIAL` status. Note the specific sources or MR URLs that failed.
+  </Step>
+  <Step title="Verify Jira token access">
+    Confirm that the configured Jira token is valid, has not expired, and has read access to the project associated with this release. Reissue the token if necessary and update it in redp's configuration.
+  </Step>
+  <Step title="Verify GitLab token coverage">
+    Confirm that the GitLab token has `read_api` scope for every component repository included in the release. If some repositories belong to a different GitLab group or instance, a separate token may be required.
+  </Step>
+  <Step title="Fix the access issue">
+    Update the token, adjust permissions, or correct the JQL definition based on what you found in the previous steps.
+  </Step>
+  <Step title="Regenerate with forceRefresh=true">
+    Trigger a new report generation and include `forceRefresh=true` to discard all cached evidence and re-collect from all sources. Without this flag, redp may reuse the cached data from the failed run.
+  </Step>
+</Steps>
+
+<Warning>
+  Do not approve a `GO` or `CONDITIONAL_GO` decision if the evidence quality section shows widespread `FETCH_FAILED`. The decision may be based on incomplete data and may not reflect the true risk of the release. Resolve the evidence gaps and regenerate before proceeding.
+</Warning>

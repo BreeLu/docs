@@ -1,0 +1,101 @@
+---
+title: "POST /guideline-reports/:id/refresh — Refresh a Guideline Report"
+sidebarTitle: "Refresh Report"
+description: "POST /guideline-reports/:id/refresh — re-runs a guideline report, optionally forcing fresh evidence collection from Jira and GitLab."
+---
+
+Use this endpoint to regenerate a guideline report — for example, after fixing a broken GitLab token, resolving outstanding Jira tickets, or merging a required MR that was previously open. Refreshing queues a new background job using the same project, release, and scope as the original report, and returns a new report ID immediately. The new job progresses through the standard `queued` → `running` → `done` lifecycle, which you can track using [Get Report](/api/get-report).
+
+**Endpoint**
+
+```
+POST https://redp.app/api/v1/guideline-reports/:id/refresh
+```
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The ID of the report you want to refresh. This can be any existing report — `done`, `failed`, or even `cancelled`.
+</ParamField>
+
+## Request Body
+
+<ParamField body="forceRefresh" type="boolean">
+  When `true`, redp discards all cached Jira tickets and GitLab MR diffs and re-collects evidence fresh from source systems. Defaults to `false`, which reuses any evidence that was successfully cached during the original run.
+</ParamField>
+
+<ParamField body="generatedBy" type="string">
+  A user identifier recorded in the new report for audit logging purposes.
+</ParamField>
+
+## Example Request
+
+```bash
+curl -X POST https://redp.app/api/v1/guideline-reports/rpt_01hx4k9m2n3p5q7r/refresh \
+  -H "Authorization: Bearer <your-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "forceRefresh": true,
+    "generatedBy": "jane.doe@example.com"
+  }'
+```
+
+## Response — 202 Accepted
+
+A new report job has been created. Use the returned `id` to poll for the result.
+
+```json
+{
+  "id": "rpt_01hy5l0n3o4q6r8s",
+  "status": "queued",
+  "projectId": "nova-platform",
+  "releaseId": "rel-2024-11-0",
+  "version": "2024.11.0",
+  "scope": "all",
+  "createdAt": "2024-11-14T11:05:00Z"
+}
+```
+
+<ResponseField name="id" type="string">
+  The ID of the newly created report job. This is different from the original report ID.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Initial job state. Always `queued` on creation.
+</ResponseField>
+
+<ResponseField name="projectId" type="string">
+  Inherited from the original report.
+</ResponseField>
+
+<ResponseField name="releaseId" type="string">
+  Inherited from the original report.
+</ResponseField>
+
+<ResponseField name="version" type="string">
+  Inherited from the original report.
+</ResponseField>
+
+<ResponseField name="scope" type="string">
+  Inherited from the original report: `all` or `custom`.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp recording when the new report job was created.
+</ResponseField>
+
+<Note>
+  Refreshing a report creates a new, independent report record. The original report is retained in full and remains accessible by its ID, so you can compare the two runs side by side.
+</Note>
+
+<Tip>
+  Use `forceRefresh: true` after rotating a GitLab access token or fixing a GitLab integration permission issue. This ensures that MR diffs which previously returned `FETCH_FAILED` are re-fetched rather than served from the failed cache entry.
+</Tip>
+
+## Error Responses
+
+| Status | Meaning |
+|--------|---------|
+| `400 Bad Request` | The request body contains invalid values. |
+| `401 Unauthorized` | The `Authorization` header is missing or the token is invalid. |
+| `404 Not Found` | No report exists with the given ID. |

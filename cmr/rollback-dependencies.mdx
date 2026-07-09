@@ -1,0 +1,106 @@
+---
+title: "Rollback Dependency Analysis for Nova Releases"
+sidebarTitle: "Rollback Dependencies"
+description: "How redp analyzes code rollback dependencies and release coupling to produce a safe rollback sequence for Nova deployments."
+---
+
+When a deployment goes wrong, the instinct is to revert the most recent change. But in a multi-component release, reverting one component without reverting its dependents can leave the system in a broken state that is harder to recover from than the original failure. redp performs rollback dependency analysis on every release report to map out which components are entangled, so that if you need to revert anything, you know exactly what else must move with it.
+
+## The two types of rollback dependency
+
+### 1. Code rollback dependency
+
+A code rollback dependency exists when reverting component A requires reverting component B due to a shared code coupling or API contract change.
+
+Common causes include:
+
+- **Breaking API changes** — component A introduces a new request or response schema that component B's code now depends on. If you revert A to the old schema, B's calls will fail.
+- **Shared library updates** — both components depend on a shared internal library, and B was updated to use the new library API at the same time A introduced it. Reverting A to the old library version breaks B.
+- **Event schema changes** — component A publishes events with a new schema that component B's consumer was updated to parse. Reverting A to the old schema leaves B unable to process events correctly.
+
+redp detects code rollback dependencies by analyzing MR content, component profile dependency declarations, and release coupling annotations.
+
+### 2. Release coupling validation
+
+A release coupling validation dependency exists when two components must be validated together even if they can technically be reverted independently. This is a softer constraint than a code rollback dependency — it does not mean you *must* revert both, but it does mean you must validate both before concluding that either revert was successful.
+
+Common causes include:
+
+- A shared integration test suite that exercises both components simultaneously
+- A feature that spans both components and can only be verified end-to-end
+- A compliance or security control that requires both components to be at matching versions
+
+## Rollback dependency summary
+
+The rollback dependency summary in the CMR Strategy section presents the dependency graph in a readable table. Each row represents a component in the release.
+
+| Component | If reverted → also revert | Release coupling validation |
+|---|---|---|
+| `payments-service` | `notification-worker` | — |
+| `payments-db-migrator` | `payments-service` | — |
+| `notification-worker` | — | `reporting-api` |
+| `reporting-api` | — | `notification-worker` |
+| `legacy-adapter` | — | — |
+
+Read the **If reverted → also revert** column as a strict requirement: reverting the component in that row means you must also revert the listed component. Read the **Release coupling validation** column as a coordination requirement: if you revert or investigate an issue with the component in that row, validate it jointly with the listed component before closing the incident.
+
+## Rollback modes
+
+Each component in a Nova release has a rollback mode that determines how it can be reverted. The rollback mode is declared in the component profile and is reflected in the CMR rollback plan.
+
+<Tabs>
+  <Tab title="Standard">
+    The component can be reverted independently using a Helm rollback, image tag revert, or equivalent mechanism. No special coordination is required, though you should still check the rollback dependency summary for any components that must move with it.
+  </Tab>
+  <Tab title="Forward-fix-only">
+    The component cannot be rolled back. Issues must be resolved by issuing a new release with a corrective change. This is typical for components that apply irreversible side effects — database migrations, event stream schema migrations, or third-party API calls that cannot be undone.
+
+    When a group contains a forward-fix-only component, the CMR rollback plan explicitly states that rollback is not available for that component and provides guidance on the forward-fix path.
+  </Tab>
+  <Tab title="Coordinated">
+    The component can be reverted, but only after coordinating with the owners of dependent components. A coordinated rollback requires a joint decision between the component owner and the owners of any components listed in the **If reverted → also revert** column. The CMR rollback plan includes the coordination steps and the contact information for the dependent component owners.
+  </Tab>
+</Tabs>
+
+## Manual dependency hints
+
+Automatic rollback dependency detection covers the cases that redp can observe from MR content, component profiles, and release coupling declarations. Some dependencies are undocumented — a runtime contract established by convention, a shared configuration file not tracked in source control, or an informal coupling between two teams' services.
+
+When you know about a dependency that redp has not detected automatically, add a **manual dependency hint** to the release.
+
+### When to add a manual hint
+
+Add a manual hint when:
+
+- Two components share a runtime contract that is not declared in either component profile
+- A dependency exists through an intermediary system (a message queue schema, a shared cache key format) that redp cannot inspect
+- A previous incident revealed a coupling that was not previously documented
+- A component owner explicitly tells you that their component must be reverted together with another
+
+### How to add a manual hint
+
+<Steps>
+  <Step title="Open the rollback dependency panel">
+    In the CMR Strategy section of the release report, click **Edit rollback dependencies** to open the dependency panel.
+  </Step>
+  <Step title="Select the source component">
+    Choose the component that, if reverted, should trigger a revert of another component.
+  </Step>
+  <Step title="Add the dependent component">
+    Select the component that must also be reverted. Choose the dependency type: **Code rollback** (strict) or **Release coupling validation** (coordination required).
+  </Step>
+  <Step title="Add a rationale">
+    Enter a short description of why this dependency exists. This rationale appears in the rollback dependency summary so that other release managers understand the coupling.
+  </Step>
+  <Step title="Save and regenerate">
+    Save the hint. redp incorporates the manual dependency into the rollback dependency summary and updates the rollout order and CMR rollback plans accordingly.
+  </Step>
+</Steps>
+
+### Overriding an automatically detected dependency
+
+If redp has detected a dependency that you believe is incorrect, you can mark it as **overridden** in the dependency panel with a rationale. Overridden dependencies are shown in the summary with a strikethrough and a note indicating that a release manager reviewed and dismissed them. This preserves the audit trail without affecting the CMR templates.
+
+<Warning>
+  Always review the rollback dependency summary before approving a NO_GO waiver. Reverting one component to unblock a release may silently break another component that depends on it — a failure that may not surface until after the change window closes. If any component in the waiver has dependents listed in the rollback dependency summary, confirm with those component owners before proceeding.
+</Warning>

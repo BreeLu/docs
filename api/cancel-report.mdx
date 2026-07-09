@@ -1,0 +1,92 @@
+---
+title: "POST /guideline-reports/:id/cancel — Cancel a Running Report"
+sidebarTitle: "Cancel Report"
+description: "POST /guideline-reports/:id/cancel — cancels a queued or running guideline report job. Has no effect on completed or already-cancelled reports."
+---
+
+Use this endpoint to cancel a report that is still in progress. Cancellation is a safe, non-destructive operation — it stops the job and marks it as `cancelled`, but does not delete the report record. You can cancel a report that is in `queued` or `running` state; calling this endpoint on a report that has already reached a terminal state (`done`, `failed`, or `cancelled`) returns a `400` error.
+
+**Endpoint**
+
+```
+POST https://redp.app/api/v1/guideline-reports/:id/cancel
+```
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The ID of the report to cancel.
+</ParamField>
+
+## Example Request
+
+```bash
+curl -X POST https://redp.app/api/v1/guideline-reports/rpt_01hx4k9m2n3p5q7r/cancel \
+  -H "Authorization: Bearer <your-token>"
+```
+
+## Response — 200 OK
+
+```json
+{
+  "id": "rpt_01hx4k9m2n3p5q7r",
+  "status": "cancelled",
+  "projectId": "nova-platform",
+  "releaseId": "rel-2024-11-0",
+  "version": "2024.11.0",
+  "scope": "all",
+  "createdAt": "2024-11-14T09:32:00Z",
+  "cancelledAt": "2024-11-14T09:34:15Z"
+}
+```
+
+<ResponseField name="id" type="string">
+  The ID of the cancelled report.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Always `cancelled` in a successful response.
+</ResponseField>
+
+<ResponseField name="projectId" type="string">
+  The Nova project ID this report belongs to.
+</ResponseField>
+
+<ResponseField name="releaseId" type="string">
+  The release ID associated with this report.
+</ResponseField>
+
+<ResponseField name="version" type="string">
+  The resolved release version string.
+</ResponseField>
+
+<ResponseField name="scope" type="string">
+  The component scope that was being used: `all` or `custom`.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp recording when the report job was originally created.
+</ResponseField>
+
+<ResponseField name="cancelledAt" type="string">
+  ISO 8601 timestamp recording when the cancellation was processed.
+</ResponseField>
+
+## When to Cancel a Report
+
+You might want to cancel a running report in the following situations:
+
+- **The report is taking unexpectedly long** — if evidence collection is stalled, cancelling lets you investigate the issue (for example, a slow GitLab instance or a Jira query timeout) and then trigger a fresh run with adjusted parameters.
+- **The report was triggered by mistake** — if you selected the wrong scope, the wrong release, or the wrong project, cancel the in-progress job and create a new one with the correct parameters using [Create Report](/api/create-report).
+
+<Note>
+  Cancelling a report that is in `running` state stops evidence collection at the current job step. Evidence gathered before the cancellation point may be partially saved and could be reused (without `forceRefresh`) if you subsequently [refresh the report](/api/refresh-report).
+</Note>
+
+## Error Responses
+
+| Status | Meaning |
+|--------|---------|
+| `400 Bad Request` | The report has already reached a terminal state (`done`, `failed`, or `cancelled`) and cannot be cancelled. |
+| `401 Unauthorized` | The `Authorization` header is missing or the token is invalid. |
+| `404 Not Found` | No report exists with the given ID. |

@@ -1,47 +1,54 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with redp for Nova Releases"
+sidebarTitle: "Quickstart"
+description: "Learn how to generate your first Nova release guideline report in redp in just a few steps."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+redp makes it straightforward to go from an open Nova release to a structured, evidence-backed approval decision. Follow the steps below to generate your first guideline report and understand what the results mean.
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
-
-    ```bash
-    npm install your-package
-    ```
+  <Step title="Open the release in redp">
+    Log in to [redp](https://redp.app) and select your Nova release from the **Releases** list. The release overview page shows the current deploy plan, component list, and any existing reports.
   </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
-
-    ```bash
-    your-cli init
-    ```
+  <Step title="Navigate to the Nova Guideline tab">
+    Inside the release, click the **Nova Guideline** tab. This tab lists all previously generated guideline reports for the release and lets you trigger a new one.
   </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+  <Step title="Configure report scope">
+    Click **New Report** and choose your scope:
 
-    ```bash
-    your-cli start
-    ```
+    - **All components** — evaluate every component in the release deploy plan. This is the recommended default for a full release readiness check.
+    - **Selected components** — pick a subset of components to evaluate. Use this for targeted re-evaluation after resolving a blocker on specific components.
+
+    Confirm your selection and proceed to the next step.
+  </Step>
+  <Step title="Trigger report generation and poll for completion">
+    Click **Generate Report**. redp begins collecting evidence from Jira and GitLab, evaluating readiness rules, and composing the AI-assisted summary. Report generation typically completes within a few minutes depending on the number of components in scope.
+
+    The report status cycles through: `PENDING` → `RUNNING` → `COMPLETE` (or `FAILED`). Refresh the page or use the [API](/api/get-report) to poll for completion.
+  </Step>
+  <Step title="Review the approval decision and required actions">
+    Once the report status is `COMPLETE`, open it to see:
+
+    - The top-level **approval decision** (GO, CONDITIONAL\_GO, NO\_GO, or UNKNOWN)
+    - A list of **blocking rules** that must be resolved before the release can proceed
+    - A list of **conditional rules** that require acknowledgement or a filed waiver
+    - The **AI-assisted release summary** with source-traced evidence references
   </Step>
 </Steps>
 
-<Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
+## What to look for in the generated report
 
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
+After the report completes, focus on these sections first:
+
+- **Decision banner** — the coloured banner at the top of the report tells you immediately whether you have a GO, CONDITIONAL\_GO, or NO\_GO.
+- **Rule evaluation table** — each readiness rule is listed with its outcome (PASS, CONDITIONAL, BLOCK) and the evidence that drove it.
+- **Evidence coverage** — check the coverage percentage for each component. Low coverage may indicate missing Jira tickets or unlinked GitLab MRs.
+- **Required actions** — any blocking or conditional rule surfaces a concrete action item. Assign each action to the relevant component owner before re-running the report.
+
+<Note>
+  The AI-assisted release summary is generated to help you communicate release context quickly, but it requires human review before use in a CMR or stakeholder communication. Always verify that the summary accurately reflects the evidence cited in the report.
+</Note>
+
+<Tip>
+  If your report returns UNKNOWN, check the **Evidence Snapshot** section for any failed Jira or GitLab collection jobs, resolve the connectivity issue, and re-trigger the report.
 </Tip>

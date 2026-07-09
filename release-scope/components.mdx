@@ -1,0 +1,90 @@
+---
+title: "Nova Component Profiles and Relationships in redp"
+sidebarTitle: "Components"
+description: "How redp models Nova components — including risk tiers, rollback modes, ownership, and inter-component relationships used in approval evaluation."
+---
+
+Every Nova component in your release is represented in redp as a **component profile** — a structured record that captures the component's identity, ownership, risk posture, and deployment requirements. When redp evaluates a guideline report, it reads these profiles to determine which approval rules apply, how rollbacks should be sequenced, and which validation checks must pass before a GO decision is issued. Understanding what each profile field means helps you interpret approval decisions and act on blockers faster.
+
+## Component profile fields
+
+Each component profile contains the following fields. You can view a component's profile in the release scope snapshot under the **Components** section of a guideline report.
+
+<Accordion title="Name & alias">
+  The **name** is the canonical display name for the component as registered in redp. The **alias** is one or more alternative identifiers — typically a short slug or a legacy name — that redp uses when matching components referenced in Jira tickets, MR descriptions, or deploy plan metadata. If a component appears under a different label in your CMR or Jira data, the alias is what ties it back to the correct profile.
+</Accordion>
+
+<Accordion title="Business domain">
+  The high-level functional domain this component belongs to — for example, `payments`, `identity`, or `notifications`. Business domain is used to group components on the guideline report and to scope approval rules that apply across an entire domain.
+</Accordion>
+
+<Accordion title="Business capability">
+  The specific capability this component provides within its domain — for example, `payment-authorisation` or `user-session-management`. redp clusters evidence chains, rollout steps, and approval gates by business capability, so this field directly controls how the business card view is assembled in your report.
+</Accordion>
+
+<Accordion title="Risk tier">
+  One of `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL`. The risk tier is the primary driver of approval strictness. Higher tiers require more approvers, mandate additional validation steps, and may restrict rollback options. Risk tier is assigned when the component is registered and can only be changed through the Nova component registry.
+</Accordion>
+
+<Accordion title="Rollback mode">
+  Describes how this component can be rolled back if a release fails. Common modes include:
+
+  | Mode | Behaviour |
+  |---|---|
+  | `standard` | Component can be independently rolled back to the previous version |
+  | `forward-fix-only` | Rolling back is not safe; issues must be resolved by deploying a fix forward |
+  | `coordinated` | Rollback must be performed in concert with one or more dependent components |
+
+  The rollback mode is evaluated alongside rollback dependencies to produce the CMR rollback strategy for the release.
+</Accordion>
+
+<Accordion title="Owner team">
+  The team accountable for this component's health, deployment, and incident response. The owner team is displayed on the business card and is notified when a component becomes a release blocker.
+</Accordion>
+
+<Accordion title="Required approvers">
+  The specific individuals or roles that must provide a GO approval before this component can be included in a release. Required approvers are defined in the component profile and are surfaced in the approval status section of the guideline report. A release cannot proceed to the GO stage until all required approvers have signed off.
+</Accordion>
+
+<Accordion title="Validation requirements">
+  The automated or manual checks that must pass before redp considers this component release-ready. Validation requirements can include integration test suites, performance benchmarks, security scans, or manual sign-off steps. Unmet validation requirements appear as blockers in the guideline report.
+</Accordion>
+
+## Component relationships
+
+Components do not exist in isolation — they interact at runtime, share configuration, and must be deployed and rolled back in coordinated ways. redp models these interactions as typed **relationships** between component profiles. Each relationship has four attributes:
+
+- **Direction** — which component depends on which (e.g. `A → B` means A depends on B)
+- **Strength** — how tightly coupled the relationship is (`weak`, `strong`, or `blocking`)
+- **Reason** — a human-readable explanation of why the relationship exists
+- **Evidence source** — where the relationship was discovered or confirmed (e.g. architecture review, runtime tracing, team declaration)
+
+The five relationship types redp recognises are:
+
+<Accordion title="Runtime dependency">
+  Component A makes live calls to component B during normal operation. A `strong` or `blocking` runtime dependency means that if B is unavailable or incompatible after deployment, A will degrade or fail. redp uses runtime dependencies to flag rollout ordering risks and to surface potential impact when a component is marked NO-GO.
+</Accordion>
+
+<Accordion title="Config dependency">
+  Component A reads configuration that is owned or published by component B. If B's configuration changes in this release, A may need to be redeployed or reconfigured as well. redp surfaces config dependencies when assessing whether a deploy plan step correctly sequences config changes before service restarts.
+</Accordion>
+
+<Accordion title="Release coupling">
+  Components A and B must be deployed together in the same release window. Release coupling is typically declared when an API contract change in one component requires a simultaneous update in another, and a partial deployment would leave the system in a broken state. Coupled components are grouped into the same rollout step in the deploy plan.
+</Accordion>
+
+<Accordion title="Rollback dependency">
+  If component A is rolled back, component B must also be rolled back — or must be rolled back first. Rollback dependencies are used by redp's CMR strategy engine to determine whether a coordinated rollback procedure is needed and to generate the correct rollback sequencing in the CMR template.
+</Accordion>
+
+<Accordion title="Validation dependency">
+  Component A cannot be considered validated until component B has completed its own validation. This is common when A's integration tests run against a live instance of B, or when B's load tests must complete before A's performance sign-off is meaningful. Validation dependencies affect the order in which validation results are evaluated in the guideline report.
+</Accordion>
+
+<Note>
+  A component's **rollback mode** directly affects how rollback dependencies are resolved. If any component in a dependency chain has `rollback mode: forward-fix-only`, redp will flag the entire chain as non-rollbackable and require a forward-fix CMR procedure. Review rollback modes carefully before committing a release plan that includes coordinated rollback steps.
+</Note>
+
+<Tip>
+  Components with a risk tier of `HIGH` or `CRITICAL` trigger stricter approval rules throughout the release. If your report is blocked on an approval and you are unsure why, check whether any component in the release scope carries one of these tiers — redp requires all required approvers for HIGH/CRITICAL components to sign off before the overall release status can advance to GO.
+</Tip>

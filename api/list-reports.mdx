@@ -1,0 +1,153 @@
+---
+title: "GET /guideline-reports — List Nova Guideline Reports"
+sidebarTitle: "List Reports"
+description: "GET /guideline-reports — returns a paginated list of guideline reports for a project or release. Filterable by status and version."
+---
+
+Use this endpoint to list all guideline reports associated with a project or release. Results are returned in reverse chronological order (newest first) and support filtering by release, version, and job status. This endpoint is useful for building dashboards, auditing historical runs, or checking whether a report has already been generated for a given release.
+
+**Endpoint**
+
+```
+GET https://redp.app/api/v1/guideline-reports
+```
+
+## Query Parameters
+
+<ParamField query="projectId" type="string" required>
+  Filter reports by project. Only reports belonging to this project are returned.
+</ParamField>
+
+<ParamField query="releaseId" type="string">
+  Narrow results to reports generated for a specific release ID.
+</ParamField>
+
+<ParamField query="version" type="string">
+  Narrow results to reports generated for a specific release version string (for example, `"2024.11.0"`).
+</ParamField>
+
+<ParamField query="status" type="string">
+  Filter by current job state. Accepted values: `queued`, `running`, `done`, `failed`, `cancelled`.
+</ParamField>
+
+<ParamField query="page" type="integer">
+  The page number to return. Defaults to `1`.
+</ParamField>
+
+<ParamField query="perPage" type="integer">
+  Number of reports to return per page. Defaults to `20`. Maximum is `100`.
+</ParamField>
+
+## Example Request
+
+```bash
+curl -G https://redp.app/api/v1/guideline-reports \
+  -H "Authorization: Bearer <your-token>" \
+  --data-urlencode "projectId=nova-platform" \
+  --data-urlencode "status=done" \
+  --data-urlencode "page=1" \
+  --data-urlencode "perPage=20"
+```
+
+## Response — 200 OK
+
+```json
+{
+  "data": [
+    {
+      "id": "rpt_01hx4k9m2n3p5q7r",
+      "status": "done",
+      "projectId": "nova-platform",
+      "releaseId": "rel-2024-11-0",
+      "version": "2024.11.0",
+      "scope": "all",
+      "createdAt": "2024-11-14T09:32:00Z",
+      "completedAt": "2024-11-14T09:38:47Z",
+      "generatedBy": "jane.doe@example.com"
+    },
+    {
+      "id": "rpt_01hw3j8l1m2n4p6q",
+      "status": "done",
+      "projectId": "nova-platform",
+      "releaseId": "rel-2024-10-0",
+      "version": "2024.10.0",
+      "scope": "all",
+      "createdAt": "2024-10-18T14:10:00Z",
+      "completedAt": "2024-10-18T14:17:22Z",
+      "generatedBy": "john.smith@example.com"
+    }
+  ],
+  "pagination": {
+    "total": 42,
+    "page": 1,
+    "perPage": 20
+  }
+}
+```
+
+<ResponseField name="data" type="array">
+  An array of report summary objects. Each object contains the following fields.
+
+  <Expandable title="Report summary fields">
+    <ResponseField name="id" type="string">
+      Unique identifier for the report.
+    </ResponseField>
+
+    <ResponseField name="status" type="string">
+      Current job state: `queued`, `running`, `done`, `failed`, or `cancelled`.
+    </ResponseField>
+
+    <ResponseField name="projectId" type="string">
+      The Nova project ID this report belongs to.
+    </ResponseField>
+
+    <ResponseField name="releaseId" type="string">
+      The release ID associated with this report.
+    </ResponseField>
+
+    <ResponseField name="version" type="string">
+      The resolved release version string.
+    </ResponseField>
+
+    <ResponseField name="scope" type="string">
+      The component scope used: `all` or `custom`.
+    </ResponseField>
+
+    <ResponseField name="createdAt" type="string">
+      ISO 8601 timestamp recording when the report job was created.
+    </ResponseField>
+
+    <ResponseField name="completedAt" type="string">
+      ISO 8601 timestamp recording when the report reached a terminal state. `null` if the report is still in progress.
+    </ResponseField>
+
+    <ResponseField name="generatedBy" type="string">
+      The user identifier recorded at report creation, if provided.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="pagination" type="object">
+  Metadata about the current page of results.
+
+  <Expandable title="Pagination fields">
+    <ResponseField name="total" type="integer">
+      Total number of reports matching the applied filters.
+    </ResponseField>
+
+    <ResponseField name="page" type="integer">
+      The current page number.
+    </ResponseField>
+
+    <ResponseField name="perPage" type="integer">
+      The number of results per page used for this response.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Error Responses
+
+| Status | Meaning |
+|--------|---------|
+| `400 Bad Request` | The `projectId` parameter is missing or a filter value is invalid. |
+| `401 Unauthorized` | The `Authorization` header is missing or the token is invalid. |

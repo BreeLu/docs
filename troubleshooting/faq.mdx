@@ -1,0 +1,79 @@
+---
+title: "Frequently Asked Questions About redp"
+sidebarTitle: "FAQ"
+description: "Common questions about redp guideline reports, approval decisions, CMR templates, and evidence collection."
+---
+
+This page answers common questions from release managers and release owners using redp. If your question is not covered here, check the [Evidence & Quality](/evidence/evidence-quality) section for data-related issues, or reach out to your platform team.
+
+<AccordionGroup>
+  <Accordion title="Why is my report showing UNKNOWN?">
+    An `UNKNOWN` outcome means redp did not have enough evidence to evaluate the release and make a recommendation. This is most often caused by a Jira or GitLab collection failure that left the report with no meaningful data to analyze.
+
+    **To resolve this:**
+    1. Open the evidence quality section of the report.
+    2. Check the **Tickets in scope** count — if it is zero, your release JQL is likely misconfigured or the Jira token has lost access.
+    3. Check the **MR diff fetch success** rate — if it is very low, your GitLab token may not have access to the component repositories.
+    4. Fix the access issue and regenerate the report with `forceRefresh=true`.
+
+    See [Handling Partial Evidence Failures](/troubleshooting/partial-evidence-failures) for a step-by-step recovery guide.
+  </Accordion>
+
+  <Accordion title="Can I re-run a guideline report?">
+    Yes. You can regenerate a guideline report at any time using the **Regenerate** button in the report view, or by calling the refresh API endpoint.
+
+    By default, redp reuses cached evidence from the most recent successful collection run. If you have fixed a Jira or GitLab access issue and want redp to re-collect all evidence from scratch, include `forceRefresh=true` in your request. This discards the cache and triggers a full evidence collection pass before regenerating the report.
+
+    Multiple generations of the same release are retained so you can compare decisions across runs.
+  </Accordion>
+
+  <Accordion title="The AI summary says something wrong. What should I do?">
+    AI-generated summaries in redp are drafts intended to help release managers get oriented quickly. They are produced from the collected evidence and may contain inaccuracies, omissions, or phrasing that does not reflect your team's intent.
+
+    **Important:** the AI summary does not affect the `GO`, `CONDITIONAL_GO`, or `NO_GO` decision. The decision logic is separate from the summary generation.
+
+    If the summary contains incorrect information, contact your release manager to annotate or override it directly in the report. Do not rely on the summary alone when making approval decisions — always review the underlying evidence and the structured blockers and conditions.
+  </Accordion>
+
+  <Accordion title="How do I add a waiver for a CONDITIONAL_GO condition?">
+    A `CONDITIONAL_GO` decision means the report identified one or more conditions that must be addressed or waived before the release can be approved.
+
+    To request a waiver for a condition:
+    1. Open the report and navigate to the **Blockers & Conditions** section.
+    2. Find the condition you want to waive and click on it to expand the detail view.
+    3. Click **Request Waiver**.
+    4. A release manager or release owner must review and approve the waiver request before it takes effect.
+
+    Once all conditions are either resolved or waived, the release can proceed to approval.
+  </Accordion>
+
+  <Accordion title="My CMR template doesn't include some MRs. Where are they?">
+    The MR list included in a CMR template may be truncated for readability. Long MR lists are shortened to keep the template concise and reviewable in change management tooling.
+
+    To see the full list of collected MRs, click the **evidence link** within the CMR template. This opens the evidence detail view where all MRs collected for the release are listed, including their fetch status and diff summaries.
+
+    If you believe specific MRs are missing entirely (not just truncated), check the evidence quality section for unresolved MR references or low MR coverage, and verify that all MR links are correctly added to their corresponding Jira tickets.
+  </Accordion>
+
+  <Accordion title="Can I use redp for non-Nova releases?">
+    The current version of redp is optimized for Nova releases. Its evidence collection logic, component profiles, CMR templates, and guideline rules are built around the Nova release model.
+
+    Cross-project and cross-platform support is on the roadmap. If you have a use case for a non-Nova release, contact your platform team to discuss what is possible with the current configuration.
+  </Accordion>
+
+  <Accordion title="Why does the rollback plan show 'forward-fix-only'?">
+    A rollback plan of `forward-fix-only` means the component involved does not support rollback. This is defined in the component's profile in redp — specifically, its `rollbackMode` is set to `forward-fix-only`.
+
+    When this is the case, if a problem occurs after deployment, you cannot roll the component back to a previous version. The only resolution path is to develop and deploy a new release that fixes the issue.
+
+    If you believe this classification is incorrect for your component, contact the component owner to review and update the component profile.
+  </Accordion>
+
+  <Accordion title="How long are evidence snapshots kept?">
+    At the time a guideline report is generated, redp saves an immutable snapshot of all collected evidence. This snapshot is what drove the approval decision and is retained for auditability — you can re-read the exact evidence behind any past decision.
+
+    Evidence snapshots are stored per report generation. If you regenerate a report, the new generation creates a new snapshot; the previous snapshot is not overwritten. Multiple generations of the same release are retained so you can compare the evidence and decisions across runs.
+
+    For questions about retention periods or storage limits, contact your platform team.
+  </Accordion>
+</AccordionGroup>

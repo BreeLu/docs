@@ -1,0 +1,163 @@
+---
+title: "GET /guideline-reports/:id — Retrieve a Full Guideline Report"
+sidebarTitle: "Get Report"
+description: "GET /guideline-reports/:id — returns the full result_json for a completed Nova guideline report, including decision, blockers, and evidence."
+---
+
+Use this endpoint to retrieve a guideline report by its ID. For reports that are still in progress, poll this endpoint until `status` reaches `done` or `failed` — once the job completes, the full `result` object is populated with the deployment decision, blockers, AI summary, evidence chains, and CMR recommendations. The example below shows a simple polling pattern you can use in automation scripts.
+
+**Endpoint**
+
+```
+GET https://redp.app/api/v1/guideline-reports/:id
+```
+
+## Path Parameters
+
+<ParamField path="id" type="string" required>
+  The unique report ID returned when the report was created (for example, `rpt_01hx4k9m2n3p5q7r`).
+</ParamField>
+
+## Polling Pattern
+
+Because report generation is asynchronous, you typically need to poll this endpoint until the job reaches a terminal state. The following example polls every five seconds:
+
+```javascript
+async function pollReport(reportId, token) {
+  while (true) {
+    const res = await fetch(`https://redp.app/api/v1/guideline-reports/${reportId}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const report = await res.json();
+    if (report.status === 'done' || report.status === 'failed') return report;
+    await new Promise(r => setTimeout(r, 5000)); // poll every 5 seconds
+  }
+}
+```
+
+## Example Request
+
+```bash
+curl https://redp.app/api/v1/guideline-reports/rpt_01hx4k9m2n3p5q7r \
+  -H "Authorization: Bearer <your-token>"
+```
+
+## Response — 200 OK
+
+```json
+{
+  "id": "rpt_01hx4k9m2n3p5q7r",
+  "status": "done",
+  "projectId": "nova-platform",
+  "releaseId": "rel-2024-11-0",
+  "version": "2024.11.0",
+  "scope": "all",
+  "createdAt": "2024-11-14T09:32:00Z",
+  "completedAt": "2024-11-14T09:38:47Z",
+  "generatedBy": "jane.doe@example.com",
+  "result": {
+    "metadata": { ... },
+    "aiSummary": { ... },
+    "decision": {
+      "value": "CONDITIONAL_GO",
+      "productionRisk": "MEDIUM",
+      "summary": "Release can proceed pending resolution of two open MR review blockers.",
+      "requiredActions": ["Obtain approval on MR !4821", "Resolve failing integration test in pipeline #9902"]
+    },
+    "blockers": [ ... ],
+    "releaseScope": { ... },
+    "cmrRecommendations": [ ... ],
+    "rollbackDependencies": [ ... ],
+    "evidenceQuality": { ... }
+  }
+}
+```
+
+<ResponseField name="id" type="string">
+  Unique identifier for this report.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current job state: `queued`, `running`, `done`, `failed`, or `cancelled`.
+</ResponseField>
+
+<ResponseField name="projectId" type="string">
+  The Nova project ID this report belongs to.
+</ResponseField>
+
+<ResponseField name="releaseId" type="string">
+  The release ID associated with this report.
+</ResponseField>
+
+<ResponseField name="version" type="string">
+  The resolved release version string.
+</ResponseField>
+
+<ResponseField name="scope" type="string">
+  The component scope used for this report: `all` or `custom`.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp recording when the report job was created.
+</ResponseField>
+
+<ResponseField name="completedAt" type="string">
+  ISO 8601 timestamp recording when the report reached a terminal state. `null` if the report is still in progress.
+</ResponseField>
+
+<ResponseField name="generatedBy" type="string">
+  The user identifier recorded at report creation, if provided.
+</ResponseField>
+
+<ResponseField name="result" type="object">
+  The full structured output of the guideline evaluation. Only present when `status` is `done`.
+
+  <Expandable title="result fields">
+    <ResponseField name="metadata" type="object">
+      Report provenance information: `version`, `projectId`, `releaseId`, `generatedAt`, `generatedBy`, and `schemaVersion`.
+    </ResponseField>
+
+    <ResponseField name="aiSummary" type="object">
+      The AI-generated narrative summary of the release. Includes `status` (`DONE`, `FAILED`, or `SKIPPED`), `overallSummary`, `keyRisks`, `requiredActions`, `evidenceGaps`, and `reviewRequired`. Check `reviewRequired` to determine whether a human reviewer must sign off before deployment.
+    </ResponseField>
+
+    <ResponseField name="decision" type="object">
+      The overall deployment decision for this release. Contains:
+      - `value` — `GO`, `CONDITIONAL_GO`, `NO_GO`, or `UNKNOWN`
+      - `productionRisk` — `LOW`, `MEDIUM`, `HIGH`, or `CRITICAL`
+      - `summary` — a plain-language explanation of the decision
+      - `requiredActions` — an array of action strings that must be completed before deployment
+    </ResponseField>
+
+    <ResponseField name="blockers" type="array">
+      An array of blocker objects identified during guideline evaluation. Each blocker contains `id`, `riskArea`, `description`, `impact` (`BLOCKER`, `CONDITION`, `WARNING`, or `INFO`), `requiredAction`, and `evidenceSource`.
+    </ResponseField>
+
+    <ResponseField name="releaseScope" type="object">
+      Describes the components and business capabilities included in this release. Contains `components` (array) and `businessCapabilities` (array).
+    </ResponseField>
+
+    <ResponseField name="cmrRecommendations" type="array">
+      Recommended Change Management Records for this release, derived from the collected evidence and guideline evaluation.
+    </ResponseField>
+
+    <ResponseField name="rollbackDependencies" type="array">
+      Dependencies that must be considered when rolling back this release, such as database migrations or downstream service contracts.
+    </ResponseField>
+
+    <ResponseField name="evidenceQuality" type="object">
+      Metrics describing the completeness of collected evidence. Fields include `ticketsInScope`, `ticketsWithMrLinks`, `mrDiffFetchSuccess`, and `unresolvedMrSample`.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<Tip>
+  If `status` is `failed`, check the `errorMessage` field on the response for the stage at which processing stopped and the reason for the failure. Common causes include unreachable GitLab instances, expired integration tokens, and malformed release configurations.
+</Tip>
+
+## Error Responses
+
+| Status | Meaning |
+|--------|---------|
+| `401 Unauthorized` | The `Authorization` header is missing or the token is invalid. |
+| `404 Not Found` | No report exists with the given ID, or the report belongs to a project you do not have access to. |

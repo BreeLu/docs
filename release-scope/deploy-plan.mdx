@@ -1,0 +1,123 @@
+---
+title: "Understanding Deploy Plans and Phase Rollouts"
+sidebarTitle: "Deploy Plan"
+description: "How redp structures deploy plan items, packages, CMR references, and phase rollout plans for a Nova release."
+---
+
+A deploy plan is the operational blueprint for how a Nova release moves from merged code to production. It connects the packages being shipped, the change management records (CMRs) that authorise the work, and the phased rollout steps that control which environments and regions receive each change and in what order. When redp captures a release scope snapshot, it reads the deploy plan in full — every item, every phase, every step — so that the guideline report can reflect the real deployment intent rather than an abstract list of components.
+
+## Deploy plan items
+
+Each deploy plan item represents a discrete unit of work in the release. A release typically contains multiple items, one per package or logical change bundle.
+
+<Accordion title="Package and package dependencies">
+  A **package** is the deployable artefact associated with a deploy plan item — for example, a container image, a Helm chart version, or a configuration bundle. redp records the package name, version, and artefact reference as part of the scope snapshot.
+
+  **Package dependencies** describe other packages that must be deployed before this item can be safely rolled out. redp uses these dependencies to validate that the phase rollout plan sequences items in a safe order. If a dependency is missing from the deploy plan entirely, redp surfaces this as a scope gap in the guideline report.
+</Accordion>
+
+<Accordion title="CMR data and status">
+  Each deploy plan item carries a reference to one or more **Change Management Records (CMRs)**. redp captures the CMR identifier, title, current approval status, and scheduled change window. The CMR status is evaluated at report generation time — if a required CMR is not yet approved, the associated rollout step is marked as blocked.
+</Accordion>
+
+<Accordion title="Owner, QA, and sponsor">
+  Every deploy plan item has three named roles:
+
+  | Role | Responsibility |
+  |---|---|
+  | **Owner** | The engineer or team accountable for the successful delivery of this item |
+  | **QA** | The person or team responsible for quality sign-off on the package |
+  | **Sponsor** | The stakeholder authorising the business change this item represents |
+
+  These roles are displayed in the deploy plan section of the guideline report and are used to route notifications when an item is blocked or requires action.
+</Accordion>
+
+<Accordion title="MR metadata">
+  redp captures GitLab merge request (MR) metadata for each deploy plan item, including the MR title, author, target branch, merge status, and URL. This metadata is used to verify that all MRs associated with the item are merged before the rollout step is marked ready, and to build the evidence chain linking code changes to the release.
+</Accordion>
+
+## Phase rollout plans
+
+A phase rollout plan defines how the deploy plan items are rolled out across environments and regions in controlled stages. Each phase contains one or more groups of rollout steps.
+
+<Accordion title="Plan groups and steps">
+  A **group** is a named collection of rollout steps that share a common phase objective — for example, `canary-eu`, `regional-stage`, or `global-production`. Within each group, **steps** are executed sequentially. Each step targets a specific environment, region, or cluster and specifies which rollout components it deploys.
+</Accordion>
+
+<Accordion title="Rollout components per step">
+  Each step lists the Nova components being deployed in that step. redp cross-references these against the component profiles in the scope snapshot to confirm that all required approvals and validation requirements for those components are satisfied before the step is cleared for execution.
+</Accordion>
+
+<Accordion title="CMR and MR references">
+  Steps carry references to the CMRs and MRs that authorise and implement the change. redp resolves these references at snapshot time and reports on their current status — approved, pending, or rejected. A step cannot be marked ready if its authorising CMR is not in an approved state.
+</Accordion>
+
+<Accordion title="GitOps resolution status">
+  For releases using a GitOps delivery model, each step includes a **GitOps resolution status** that indicates whether the declarative configuration for that step has been reconciled by the GitOps controller. Possible states are `pending`, `synced`, `out-of-sync`, and `failed`. redp surfaces sync failures as blockers in the rollout report.
+</Accordion>
+
+<Accordion title="PDV (pre-deploy validation) status">
+  **Pre-deploy validation (PDV)** is a set of automated checks that must pass before a step proceeds. PDV results are captured per step and surfaced in the guideline report. If PDV has not been run, or if any check has failed, the step is flagged as not ready.
+</Accordion>
+
+<Accordion title="gitcd status">
+  **gitcd** is the GitLab-native continuous delivery pipeline used to execute rollout steps. redp records the gitcd pipeline status for each step — `not_started`, `running`, `succeeded`, or `failed` — so you can see at a glance which steps have completed and which are in progress or need attention.
+</Accordion>
+
+<Accordion title="Rollout report status">
+  The **rollout report** is the post-execution summary for a completed step. It records what was deployed, when, by whom, and whether any issues were observed. redp captures the rollout report status (`pending`, `submitted`, `approved`) for each step and requires submitted reports before marking a phase as complete.
+</Accordion>
+
+## How deploy plan items relate to the guideline report
+
+The guideline report reads the deploy plan to determine the overall health of the release. Each deploy plan item contributes to the report in three ways:
+
+1. **Approval gate** — CMR status and required approver sign-offs are checked against each item before a GO decision is issued.
+2. **Rollout readiness** — PDV, GitOps, and gitcd statuses determine whether each phase step is ready to execute.
+3. **Evidence linkage** — MR metadata from deploy plan items feeds into the evidence chains that connect code changes to Jira tickets and business capabilities.
+
+If any item has an unresolved blocker, the guideline report reflects this in the approval decision and surfaces the required action in the blockers section.
+
+<Note>
+  Releases without a phase rollout plan still generate a basic release scope snapshot. In these cases, redp captures the deploy plan items and component profiles but marks the rollout plan section as absent. The guideline report will still evaluate approvals and CMR status, but rollout readiness checks will be skipped.
+</Note>
+
+## Example deploy plan item structure
+
+The following snippet shows the shape of a single deploy plan item as stored in the release scope snapshot.
+
+```json
+{
+  "id": "dpi-0042",
+  "package": {
+    "name": "payments-service",
+    "version": "3.14.2",
+    "artefact": "registry.nova.internal/payments-service:3.14.2"
+  },
+  "packageDependencies": [
+    {
+      "package": "payments-config",
+      "version": ">=2.1.0",
+      "type": "config"
+    }
+  ],
+  "cmr": {
+    "id": "CHG0094321",
+    "title": "Deploy payments-service 3.14.2 to production",
+    "status": "approved",
+    "changeWindow": "2025-06-14T02:00:00Z"
+  },
+  "owner": "payments-platform-team",
+  "qa": "jane.doe@nova.internal",
+  "sponsor": "Head of Payments Engineering",
+  "mrMetadata": [
+    {
+      "mrId": 8841,
+      "title": "feat: add retry budget for authorisation calls",
+      "author": "john.smith",
+      "status": "merged",
+      "url": "https://gitlab.nova.internal/payments/payments-service/-/merge_requests/8841"
+    }
+  ]
+}
+```

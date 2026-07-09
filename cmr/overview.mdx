@@ -1,0 +1,54 @@
+---
+title: "CMR Strategy Overview for Nova Releases"
+sidebarTitle: "Overview"
+description: "How redp generates CMR strategy recommendations — grouping components, assigning risk, and producing rollout and rollback sequences."
+---
+
+A CMR (Change Management Record) is the formal change record required before any Nova component reaches production. When a release spans multiple components, you need more than individual CMRs — you need a strategy that sequences deployments safely, groups tightly coupled components, and prepares a coherent rollback path. redp analyzes component relationships, evidence quality, and runtime dependencies to produce a complete CMR strategy recommendation for every release report you generate.
+
+## What CMR strategy gives you
+
+The CMR strategy section of a redp report answers three questions: which components must move together, which components need coordinated validation even if deployed separately, and in what order should the groups be deployed? By answering those questions up front, redp reduces the coordination overhead on release day and makes the risk surface explicit before any change window opens.
+
+## The three grouping types
+
+redp organizes components into groups using three deployment scopes.
+
+**Deploy together** groups contain components that must ship as a single unit. They share a combined CMR, deploy in the same change window, and are either all approved or all blocked. A single blocked component holds the entire group.
+
+**Coordinate/validate** groups contain components that can deploy under separate CMRs but require synchronized validation. Both deployments must succeed before either is considered stable, and a failure in one triggers a coordinated review of the other.
+
+**Rollout order** defines the recommended sequence for deploying groups relative to each other. Groups earlier in the order are deployed first and validated before later groups proceed.
+
+<Tip>
+  The CMR strategy is generated from component relationships and the evidence redp collects for each component. Higher-quality evidence — complete Jira tickets, merged MRs, passing PDV checks — produces more accurate grouping and a more reliable rollout sequence.
+</Tip>
+
+## Typical CMR strategy output
+
+A CMR strategy report section looks similar to the table below. Each row represents one deployment group.
+
+| Group | Components | Deployment type | Risk level | Approval status | Rollout strategy |
+|---|---|---|---|---|---|
+| Group 1 | `payments-service`, `payments-db-migrator` | Deploy together | HIGH | Approved | FFS |
+| Group 2 | `notification-worker` | Rollout order — position 2 | MEDIUM | Approved | GA |
+| Group 3 | `reporting-api`, `reporting-ui` | Coordinate/validate | LOW | Conditional | Mixed |
+| Group 4 | `legacy-adapter` | Rollout order — position 4 | CRITICAL | Blocked | No-Go |
+
+**Risk level** reflects the aggregate evidence quality, rollback mode, and blast radius of the group. redp uses four levels: `LOW`, `MEDIUM`, `HIGH`, and `CRITICAL`.
+
+**Rollout strategy** is the recommended go/no-go stance for the group:
+
+- **GA** — general availability; deploy as normal
+- **FFS** — forward-fix-only; deploy with the understanding that issues must be resolved by a new release rather than a rollback
+- **Mixed** — components in the group have different rollback modes; review the rollback plan carefully
+- **No-Go** — redp recommends against deploying this group in the current release
+- **Conditional Go** — deployment is allowed if stated conditions are met before the change window
+
+**Approval status** shows whether the group has been approved, is pending review, carries unresolved conditions, or is blocked by an open blocker.
+
+## Next steps
+
+- Learn how redp decides which components belong in each group: [CMR Group Deployment Scopes and Rollout Order](/cmr/grouping)
+- See the pre-filled CMR templates redp generates for each group: [Combined CMR Templates](/cmr/combined-templates)
+- Understand rollback dependency analysis: [Rollback Dependency Analysis](/cmr/rollback-dependencies)

@@ -1,0 +1,44 @@
+---
+title: "redp: Nova Release Management Made Auditable"
+sidebarTitle: "Introduction"
+description: "redp is your central platform for planning, evaluating, and approving Nova releases with structured guideline reports and deterministic approval decisions."
+---
+
+redp is the release deployment platform built for Nova release managers. It brings together your release scope, component risk data, Jira and GitLab evidence, CMR strategy, and rollback analysis into a single auditable workflow — replacing ad-hoc spreadsheets and manual checklist reviews with structured guideline reports and deterministic approval decisions that every stakeholder can trust.
+
+## Key capabilities
+
+<CardGroup cols={2}>
+  <Card title="Release Guidelines" icon="clipboard-list" href="/release-guidelines/overview">
+    Generate a structured readiness report for any Nova release. redp evaluates every rule in your guideline policy and returns a single, auditable approval decision backed by collected evidence.
+  </Card>
+  <Card title="CMR Strategy" icon="layer-group" href="/cmr/overview">
+    Group components into logical CMRs, generate combined CMR templates, and model rollback dependencies so that your change management records reflect the real deployment order.
+  </Card>
+  <Card title="Evidence Collection" icon="magnifying-glass" href="/evidence/jira-collection">
+    Pull Jira tickets and GitLab merge requests automatically, snapshot them at report generation time, and measure evidence quality and coverage across every component in scope.
+  </Card>
+  <Card title="Rollback Analysis" icon="rotate-left" href="/cmr/rollback-dependencies">
+    Identify which components must roll back together, understand dependency chains, and ensure your rollback plan is viable before you approve the release.
+  </Card>
+</CardGroup>
+
+## Approval decision model
+
+Every guideline report redp generates closes with one of four deterministic approval decisions. The decision is computed by evaluating all readiness rules against the collected evidence — there is no manual override of the outcome itself, only the ability to file a waiver or resolve a blocker.
+
+| Decision | Meaning |
+|---|---|
+| **GO** | All rules pass. The release is ready to proceed. |
+| **CONDITIONAL\_GO** | One or more rules are conditional. Proceed only after resolving or waiving each condition. |
+| **NO\_GO** | One or more rules are blocking. The release must not proceed until blockers are resolved. |
+| **UNKNOWN** | Evidence collection is incomplete or the report is still processing. Re-evaluate before making a release decision. |
+
+<Tip>
+  A CONDITIONAL\_GO is not a failure — it means the release can move forward once the listed conditions are acknowledged and signed off by the relevant owners.
+</Tip>
+
+## Next steps
+
+- Follow the [Quickstart](/quickstart) to generate your first guideline report.
+- Read [Key Concepts](/key-concepts) to understand releases, components, CMRs, evidence, and waivers.

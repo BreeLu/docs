@@ -1,0 +1,92 @@
+---
+title: "Jira Evidence Collection for Nova Release Guidelines"
+sidebarTitle: "Jira Collection"
+description: "How redp collects Jira tickets for a Nova release — JQL scoping, ticket normalization, MR link discovery, and collection failure handling."
+---
+
+Jira evidence forms the foundation of every guideline report. redp uses your Jira tickets to determine what work is included in a release, understand the risk profile of each change, surface known issues that may affect customers, and discover GitLab merge requests that contain the actual code changes. Without accurate Jira data, the report cannot reliably assess release readiness.
+
+## How tickets are scoped
+
+redp scopes Jira tickets to your release using a JQL query. This query is defined per release and typically filters by fix version or a named release filter — for example:
+
+```text
+fixVersion = "nova-2024.11" ORDER BY priority DESC
+```
+
+Every ticket returned by that query is included in the evidence set. redp records the total ticket count as the **Tickets in scope** metric in the evidence quality section of the report.
+
+<Note>
+  Your project must have a configured Jira token and a valid release JQL definition before redp can collect Jira evidence. Contact your release manager if either is missing.
+</Note>
+
+## What redp collects per ticket
+
+For each ticket returned by the release JQL, redp normalizes and stores the following fields:
+
+| Field | Description |
+|---|---|
+| Title | The ticket summary |
+| Status | Current workflow status (e.g., In Progress, Done, Closed) |
+| Priority | Ticket priority (e.g., Critical, High, Medium, Low) |
+| Issue type | Bug, Story, Task, Sub-task, etc. |
+| Fix version | The release version(s) the ticket is assigned to |
+| Components | Jira components associated with the ticket |
+| Labels | Any labels applied to the ticket |
+| Description | Full ticket description text, parsed for MR links |
+| Comments | All ticket comments, parsed for MR links |
+| Remote links | Linked URLs attached to the ticket, parsed for MR links |
+
+### Known issue tickets
+
+If a ticket is an open bug with customer-facing impact, redp classifies it as a **known issue**. Known issues are surfaced in a dedicated section of the guideline report so release managers can assess whether they are acceptable at go-live or require a waiver.
+
+## MR link discovery
+
+redp automatically discovers GitLab merge request URLs from each ticket. It parses MR links from three sources:
+
+<Steps>
+  <Step title="Description">
+    redp scans the full ticket description for any URLs matching a GitLab MR pattern (e.g., `https://gitlab.example.com/group/repo/-/merge_requests/123`).
+  </Step>
+  <Step title="Comments">
+    redp scans all comments on the ticket. Developers commonly post MR links in comments when submitting code for review.
+  </Step>
+  <Step title="Remote links">
+    redp reads the structured remote links attached to the ticket in Jira. These links are added via integrations or manually and tend to be more reliable than free-text references.
+  </Step>
+</Steps>
+
+All discovered MR URLs are deduplicated and passed to the GitLab evidence collection stage. See [GitLab MR Collection](/evidence/gitlab-mr-collection) for how redp fetches MR details and diffs.
+
+## Normalized ticket example
+
+After collection, each ticket is stored as a normalized record. Here is an example of what a collected ticket looks like internally:
+
+```json
+{
+  "key": "NOVA-4821",
+  "title": "Fix null pointer in payment processor on retry",
+  "status": "Done",
+  "priority": "High",
+  "issueType": "Bug",
+  "fixVersions": ["nova-2024.11"],
+  "components": ["payments", "core-api"],
+  "labels": ["regression", "customer-facing"],
+  "mrLinks": [
+    "https://gitlab.example.com/nova/payments/-/merge_requests/304",
+    "https://gitlab.example.com/nova/core-api/-/merge_requests/891"
+  ],
+  "isKnownIssue": false
+}
+```
+
+## Collection failure handling
+
+If redp cannot reach Jira — due to a token expiry, network issue, or permissions problem — Jira evidence collection fails and the report records a `FETCH_FAILED` status for this source. The report will still generate using any other available evidence, but the **Tickets in scope** count will be zero and MR discovery will not occur.
+
+See [Handling Partial Evidence Failures](/troubleshooting/partial-evidence-failures) for steps to diagnose and recover from a Jira collection failure.
+
+<Tip>
+  If your ticket count seems lower than expected, verify the release fix version spelling or the JQL filter definition with your release manager. A mismatched fix version (e.g., `nova-2024.11` vs `Nova 2024.11`) will silently exclude tickets from the scope.
+</Tip>

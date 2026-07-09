@@ -1,0 +1,81 @@
+---
+title: "Evidence Chains: Tracing Features to Jira and MR Proof"
+sidebarTitle: "Evidence Chains"
+description: "How redp builds evidence chains connecting release features to Jira tickets, GitLab MRs, and wiki references per business capability."
+---
+
+An evidence chain is the traceable connection between what your release changes and the documented proof that those changes are safe to ship. For each business capability touched by a release, redp assembles a chain that links the deployed code back to approved Jira tickets, merged GitLab MRs, and supporting wiki references. This traceability is not just a compliance formality — approvers use evidence chains to make informed GO/NO-GO decisions, and audit teams use them after the fact to reconstruct exactly what changed, why, and on whose authority.
+
+## Structure of an evidence chain
+
+Each evidence chain is scoped to a single **business capability** and contains the following elements:
+
+<Accordion title="Business capability">
+  The capability this chain covers — for example, `payment-authorisation` or `user-session-management`. Every component in the release scope is tagged with a business capability in its component profile. redp uses these tags to group evidence into capability-level chains, so approvers can review the full impact of a release on a specific business function in one place.
+</Accordion>
+
+<Accordion title="Merged source features">
+  A list of the code changes that landed in this release and are attributed to this capability. Each entry records the feature or fix description, the components it touches, and the associated MR identifiers. This section answers the question: *what actually changed?*
+</Accordion>
+
+<Accordion title="Main Jira evidence">
+  The Jira tickets that authorise and describe the work in this capability's chain. For each ticket, redp captures:
+
+  | Field | Description |
+  |---|---|
+  | **Ticket key** | The Jira issue key (e.g. `PAY-4821`) |
+  | **Summary** | The ticket title |
+  | **Status** | Current workflow state (e.g. `Done`, `In Review`) |
+  | **Priority** | The ticket priority as set in Jira |
+  | **Fix version** | The release version the ticket is targeted for |
+
+  redp cross-references ticket fix versions against the release version to flag tickets that may have been collected erroneously or that belong to a different release.
+</Accordion>
+
+<Accordion title="Known issue tickets">
+  Open Jira tickets that represent known bugs or regressions associated with this capability. Known issue tickets carry a **customer impact** flag indicating whether the issue affects end users. If a known issue ticket is open and customer-impacting at report generation time, redp surfaces it as a conditional blocker in the guideline report, requiring the release sponsor to explicitly acknowledge it before a GO decision can be issued.
+</Accordion>
+
+<Accordion title="MR and wiki evidence links">
+  Direct links to the GitLab MRs and Confluence/wiki pages that provide supporting evidence for the capability chain. MR links are resolved to their merge status and diff summary. Wiki links are recorded as-is and are displayed as clickable references in the report. These links allow approvers to drill into the technical detail behind each Jira ticket without leaving the redp report.
+</Accordion>
+
+## How redp builds evidence chains
+
+redp constructs evidence chains automatically during report generation. The process follows four stages:
+
+<Steps>
+  <Step title="Collect Jira tickets via release JQL">
+    redp executes a Jira Query Language (JQL) query scoped to the release version. The query returns all tickets whose fix version matches the release, filtered to the projects and issue types configured for your Nova project. This forms the initial pool of evidence.
+  </Step>
+  <Step title="Parse MR links from tickets">
+    For each collected Jira ticket, redp scans the ticket description, comments, and remote links to extract GitLab MR references. MR references can appear as full URLs, short `!1234` references, or structured remote links created by the GitLab-Jira integration. redp normalises all formats into a canonical MR identifier.
+  </Step>
+  <Step title="Fetch GitLab MR details and diffs">
+    redp calls the GitLab API for each identified MR to retrieve the MR title, author, merge status, target branch, and a summary of the diff. The diff summary is used to identify which Nova components were modified, which feeds into the next stage. MRs that are still open at snapshot time are flagged as incomplete evidence.
+  </Step>
+  <Step title="Cluster evidence by business capability">
+    Using the component profile data in the scope snapshot, redp maps each MR and Jira ticket to one or more business capabilities. Evidence is grouped into chains — one chain per capability. If a ticket or MR touches components belonging to multiple capabilities, it appears in all relevant chains. The result is a set of capability-level evidence chains that reflect both the code changes and the authorising business context.
+  </Step>
+</Steps>
+
+## Reading evidence chains in the guideline report
+
+Evidence chains are displayed in the **Business Capabilities** section of the guideline report. The layout for each capability is:
+
+- A **business card** header showing the capability name, rollout strategy, and overall approval status
+- An expandable **What changed** section listing the merged source features for this capability
+- An expandable **Jira evidence** section showing the main tickets, their statuses, and fix versions — each ticket is a clickable link that opens directly in Jira
+- An expandable **Known issues** section highlighting any open bugs with customer impact
+- An expandable **MR & wiki evidence** section with clickable links to each GitLab MR and any supporting wiki pages
+- A **blocking component** indicator if any component in this capability chain is preventing a GO decision, along with the required action to clear the block
+
+You navigate between capabilities using the business capability index at the top of the report. Each capability card is colour-coded by its rollout strategy: green for GA, amber for FFS or Conditional Go, red for No-Go.
+
+<Tip>
+  If an evidence chain is empty or shows very few tickets, check the **Evidence Quality** section of the guideline report. Collection errors — such as a misconfigured JQL fix version, a Jira project not included in the query scope, or a GitLab API permission issue — are reported there with actionable remediation steps.
+</Tip>
+
+<Note>
+  Evidence is captured as a **snapshot at report generation time**. If Jira tickets are updated, MRs are merged, or wiki pages are edited after the report is generated, the evidence chains in that report will not reflect those changes. To incorporate new evidence, regenerate the report using the **Refresh** action. This design is intentional — it ensures that the evidence record for a given approval decision is immutable and auditable after the fact.
+</Note>

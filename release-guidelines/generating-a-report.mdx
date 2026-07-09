@@ -1,0 +1,84 @@
+---
+title: "Generate a Nova Release Guideline Report"
+sidebarTitle: "Generate Report"
+description: "Step-by-step guide to triggering, monitoring, and reading a Nova release guideline report in redp."
+---
+
+Generating a guideline report in redp starts a background job that collects evidence from Jira, GitLab, and your wiki, evaluates every approval rule, and assembles the result into a structured report page. The steps below walk you through the full flow from navigating to your release to reading the completed output.
+
+<Warning>
+  Evidence collection for large releases — those with many components or a high volume of Jira tickets and GitLab MRs — can take several minutes. redp fetches evidence in parallel where possible, but external API rate limits and pagination for large data sets can extend collection time. Plan accordingly if you need a report before a scheduled release window.
+</Warning>
+
+<Steps>
+  <Step title="Navigate to the release">
+    Open redp and go to the **Projects** list. Select the Nova project that contains the release you want to assess, then open the **Releases** tab. Click the release name to open its detail page.
+  </Step>
+
+  <Step title="Open the Nova Guideline tab">
+    On the release detail page, select the **Nova Guideline** tab. If a report has previously been generated for this release, you will see it here. If no report exists yet, the tab shows a prompt to generate one.
+  </Step>
+
+  <Step title="Configure scope">
+    Choose the scope of the report. The scope controls which components redp collects evidence for and evaluates.
+
+    <Tabs>
+      <Tab title="All components">
+        Select **All** to include every component that belongs to the release. redp will collect evidence and run approval rules for each component in the release scope. This is the recommended option for a complete readiness assessment.
+
+        ```json
+        {
+          "scope": "all"
+        }
+        ```
+      </Tab>
+      <Tab title="Custom components">
+        Select **Custom** to restrict the report to a specific subset of components. After selecting Custom, a component picker appears — choose one or more component IDs from the release. Use this option when you need a quick check on a subset of changes or want to re-evaluate only the components that changed since the last report.
+
+        ```json
+        {
+          "scope": "custom",
+          "componentIds": ["comp-abc123", "comp-def456"]
+        }
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Trigger generation">
+    Click **Generate Report**. redp submits a generation request with your configured inputs and immediately creates a job. The full set of request parameters looks like this:
+
+    ```json
+    {
+      "projectId": "nova-proj-7890",
+      "releaseId": "rel-20240315-v4.2.0",
+      "scope": "all",
+      "componentIds": [],
+      "forceRefresh": false,
+      "generatedBy": "jane.doe@example.com"
+    }
+    ```
+
+    <Note>
+      Set `forceRefresh` to `true` if you want redp to re-collect evidence from Jira and GitLab even if cached evidence already exists for this release. Use `forceRefresh` when you know evidence has changed since the last collection — for example, a Jira ticket was updated or a new MR was merged. Without `forceRefresh`, redp reuses cached evidence to keep generation fast.
+    </Note>
+  </Step>
+
+  <Step title="Monitor job progress">
+    After submission, redp displays a job status indicator on the Nova Guideline tab. Jobs move through the following states:
+
+    | State | Meaning |
+    |---|---|
+    | `queued` | The generation request is waiting for a worker to pick it up. |
+    | `running` | redp is actively collecting evidence and evaluating rules. |
+    | `done` | The report is complete and ready to view. |
+    | `failed` | The job encountered an error. Check the job detail for the failure reason. |
+    | `cancelled` | The job was cancelled before completion, either manually or by a system timeout. |
+
+    Refresh the page or wait for the live status update — redp pushes state changes in real time. If a job enters `failed`, you can retry generation from the same tab. If it enters `cancelled`, resubmit with the same or updated parameters.
+  </Step>
+
+  <Step title="View the completed report">
+    When the job reaches `done`, the Nova Guideline tab renders the full guideline report. The header shows the overall approval decision (GO, CONDITIONAL_GO, NO_GO, or UNKNOWN) along with the release name, version, and the timestamp of the evidence snapshot. Scroll through the report sections to review the AI summary, approval decision detail, blockers, conditions, and evidence chains. See [Approval Decisions](./approval-decisions) and [Blockers & Conditions](./blockers-and-conditions) for guidance on reading and acting on the results.
+  </Step>
+</Steps>

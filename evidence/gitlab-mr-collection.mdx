@@ -1,0 +1,103 @@
+---
+title: "GitLab MR Evidence Collection for Release Reports"
+sidebarTitle: "GitLab Collection"
+description: "How redp fetches GitLab merge request details, diffs, and commit metadata to build evidence chains for Nova release guideline reports."
+---
+
+Merge request evidence is the most detailed signal redp has about what code is actually changing in a release. Jira tickets describe intent; GitLab MRs contain the ground truth — which files changed, how many lines were modified, what branches were targeted, and whether the merge was completed. Reviewers and approvers rely on MR evidence to assess deployment risk, confirm that changes are scoped to the expected components, and verify that work described in tickets was actually merged before the release window.
+
+## MR collection flow
+
+redp follows a structured pipeline to collect MR evidence for every link discovered during Jira collection.
+
+<Steps>
+  <Step title="Discover MR URLs from Jira">
+    redp starts with the list of MR URLs extracted from Jira ticket descriptions, comments, and remote links. Each unique URL becomes a collection target. See [Jira Evidence Collection](/evidence/jira-collection) for how MR links are discovered.
+  </Step>
+  <Step title="Fetch MR detail">
+    For each MR URL, redp calls the GitLab API to retrieve the merge request detail record, including:
+    - Title and description
+    - State (open, merged, closed)
+    - Merge status (can_be_merged, merged, conflict)
+    - Source branch and target branch
+    - Author name and username
+    - Created and updated timestamps
+  </Step>
+  <Step title="Fetch MR notes">
+    redp retrieves all notes (comments) on the MR. Notes are included in evidence to capture reviewer discussions, approval stamps, and any inline feedback that may be relevant to risk assessment.
+  </Step>
+  <Step title="Fetch MR diff">
+    redp fetches the full diff for the MR, recording each changed file along with added and removed line counts. The diff is used to assess change volume and confirm that modifications are limited to the expected components and file paths.
+  </Step>
+  <Step title="Record commit metadata">
+    redp captures commit metadata for the MR, including the commit SHA, commit message, and authored date. This provides a verifiable record of when changes were finalized.
+  </Step>
+</Steps>
+
+<Warning>
+  If your GitLab token does not have access to a component repository, MR diffs for that repository will show as `FETCH_FAILED` in the evidence quality section. Ensure your token has at least `read_api` scope across all component repos included in the release.
+</Warning>
+
+## Collected MR record example
+
+After collection, each MR is stored as a normalized record. Here is an example:
+
+```json
+{
+  "mrUrl": "https://gitlab.example.com/nova/payments/-/merge_requests/304",
+  "title": "Fix null pointer in payment processor on retry",
+  "state": "merged",
+  "mergeStatus": "merged",
+  "sourceBranch": "fix/NOVA-4821-payment-null-pointer",
+  "targetBranch": "main",
+  "author": {
+    "name": "Priya Menon",
+    "username": "p.menon"
+  },
+  "createdAt": "2024-11-03T09:14:22Z",
+  "mergedAt": "2024-11-05T16:47:09Z",
+  "commits": [
+    {
+      "sha": "a3f9c1d",
+      "message": "Fix null pointer on retry path in PaymentProcessor",
+      "authoredDate": "2024-11-03T09:11:55Z"
+    }
+  ],
+  "diff": {
+    "changedFiles": 3,
+    "additions": 47,
+    "deletions": 12,
+    "files": [
+      "src/payments/PaymentProcessor.java",
+      "src/payments/RetryHandler.java",
+      "test/payments/PaymentProcessorTest.java"
+    ]
+  },
+  "fetchStatus": "FOUND"
+}
+```
+
+## Unresolved MR references
+
+An unresolved MR reference is an MR URL that redp discovered in Jira but could not successfully fetch from GitLab. The evidence quality section lists a sample of unresolved references so you can investigate each one.
+
+Common causes include:
+
+| Cause | Description |
+|---|---|
+| Private repository | The GitLab token does not have access to the repository hosting the MR |
+| Incorrect URL | The URL in Jira contains a typo or points to a deleted MR |
+| Access denied | The token lacks the required scope (`read_api`) for that project |
+| MR deleted | The merge request was deleted from GitLab after the link was added to Jira |
+
+To resolve these, check the unresolved MR list in the evidence quality section, confirm the correct URL and repository access, then regenerate the report with `forceRefresh=true`.
+
+## MR coverage and evidence risk
+
+If a significant portion of tickets in scope have no MR links at all, redp flags an **evidence risk** in the report. Low MR coverage means the code changes underpinning the release cannot be verified, which may result in a `CONDITIONAL_GO` decision rather than a clean `GO`.
+
+To improve coverage, ensure that developers link their MRs to Jira tickets before the release evidence collection window closes.
+
+<Tip>
+  MR links added to Jira as **remote links** (via the GitLab–Jira integration or manually through the "Link" dialog) are more reliably detected than links pasted into free-text descriptions or comments. Encourage your team to use the remote link feature.
+</Tip>

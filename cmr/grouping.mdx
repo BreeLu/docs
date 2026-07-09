@@ -1,0 +1,92 @@
+---
+title: "CMR Group Deployment Scopes and Rollout Order"
+sidebarTitle: "Grouping"
+description: "How redp groups Nova components into CMR batches — deploy-together, coordinate-validate, and ordered rollout — based on component relationships."
+---
+
+CMR grouping is how redp translates a list of Nova components into a safe, sequenced deployment plan. Rather than treating every component as an independent change, redp examines the relationships between components — release coupling, configuration dependencies, runtime contracts, and rollback dependencies — and uses those relationships to form deployment groups. Each group gets a deployment scope that tells you how tightly the components must move together, and each group is placed in a rollout order that tells you when it should deploy relative to the others.
+
+## Inputs that drive grouping
+
+redp uses the following inputs when forming groups:
+
+- **Release coupling declarations** in component profiles — explicit statements that two components must ship together
+- **Configuration dependencies** — one component reads configuration produced or validated by another
+- **API contract changes** — breaking changes that require a consumer and producer to deploy in a specific order
+- **Rollback dependency analysis** — components whose rollback paths are entangled (see [Rollback Dependency Analysis](/cmr/rollback-dependencies))
+- **Evidence quality signals** — low-evidence components may be held back from a group or flagged for additional validation
+
+## Deploy together
+
+A **deploy together** group contains components that must be deployed as a single unit within the same change window.
+
+### What triggers this grouping
+
+redp assigns a deploy-together scope when it detects any of the following between two or more components:
+
+- An explicit release coupling declaration in one or both component profiles
+- A database schema migration that must be in sync with the application code that consumes it
+- A shared configuration artifact that both components read at startup
+- An API contract change where a backward-incompatible interface must be available before any consumer deploys
+
+### What it means for the CMR
+
+All components in a deploy-together group are covered by a single combined CMR. The change plan in that CMR lists the ordered steps to deploy every component in the group. You submit one CMR for approval and deploy all components in sequence during the same window.
+
+### When one component is blocked
+
+If any component in a deploy-together group has an open blocker — an unresolved Jira defect, a failing PDV check, a missing approval — the entire group is blocked. redp surfaces this as a group-level blocker with a reference to the specific component causing it. You cannot partially deploy a deploy-together group; resolve the blocker or remove the blocked component from the release before proceeding.
+
+## Coordinate/validate
+
+A **coordinate/validate** group contains components that can be deployed under separate CMRs but require synchronized post-deployment validation.
+
+### What triggers this grouping
+
+redp assigns a coordinate/validate scope when it detects a validation dependency between components without a hard requirement to deploy simultaneously:
+
+- One component exposes a feature flag that another component's tests exercise
+- Two components share an integration test suite that both must pass before either is considered stable
+- A downstream component's smoke tests depend on the upstream component being healthy first
+
+### How this affects the CMR
+
+Each component in a coordinate/validate group has its own CMR, so you can schedule and submit them independently. However, the test plans in both CMRs reference the shared validation requirement. A failure in one component's post-deployment validation triggers a review of the other component even if that component deployed cleanly. Track both deployments in the same change window or coordinate closely across windows.
+
+## Rollout order
+
+**Rollout order** is the recommended sequence for deploying groups relative to each other. It is distinct from the deployment scope of any individual group — it answers the question of which groups should go first, not how tightly the components within a group are coupled.
+
+### How order is determined
+
+redp constructs the rollout order from a directed dependency graph:
+
+1. **Runtime dependencies** — if Group A exposes a service that Group B depends on at runtime, Group A deploys first
+2. **Rollback dependencies** — if reverting Group B requires reverting Group A, Group A deploys first so that the rollback path is clear
+3. **Risk level** — higher-risk groups are generally placed later in the sequence so that low-risk changes are validated in production before higher-risk ones follow
+4. **Forward-fix-only components** — groups containing FFS components are ordered so that no dependent group deploys before the FFS component is confirmed stable
+
+### Example rollout order
+
+```
+Rollout order for Release 24.11.0
+──────────────────────────────────
+Position 1  →  infra-config-sync       (LOW, GA)
+Position 2  →  payments-service        (HIGH, FFS)
+              payments-db-migrator     (deploy together with payments-service)
+Position 3  →  notification-worker     (MEDIUM, GA)
+Position 4  →  reporting-api           (LOW, Conditional Go)
+              reporting-ui             (coordinate/validate with reporting-api)
+```
+
+<Warning>
+  Do not alter the recommended rollout order without consulting the rollback dependency summary. Deploying a group out of sequence can leave the system in a state where rolling back a later group is impossible without also reverting an earlier group — a dependency that may not be obvious until something goes wrong.
+</Warning>
+
+## Rollback order
+
+The rollback order is the reverse of the rollout order, adjusted for any rollback dependencies that require a different sequence when reverting. redp publishes the rollback order alongside the rollout order in the CMR strategy section. Review it before the change window so that your team knows the exact revert sequence if a deployment fails.
+
+<Note>
+  The **grouping rationale** shown next to each group in the report explains the specific relationships that caused redp to form that group. If the rationale references a component relationship you believe is incorrect, update the component profiles and regenerate the report rather than overriding the grouping manually.
+</Note>

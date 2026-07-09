@@ -1,0 +1,164 @@
+---
+title: "Combined CMR Templates: Description, Change Plan, and Rollback Plan"
+sidebarTitle: "CMR Templates"
+description: "How redp generates pre-filled CMR templates for each deployment group, including change plan, test plan, and rollback plan."
+---
+
+For every CMR group in a release report, redp generates a pre-filled CMR template that you can copy directly into your change management system. Instead of writing descriptions, change steps, and rollback procedures from scratch on the day of deployment, you start with a structured draft that reflects the actual components, merge requests, and dependencies in the release. This reduces the manual work for release managers and lowers the risk of missing a step under time pressure.
+
+## Where to find the templates
+
+CMR templates appear in the **CMR Strategy** section of each release report. Each group has its own template. You can copy the template text to your clipboard or download it as a file using the controls at the top of each template card.
+
+<Tip>
+  If the MR list in a template is truncated, click the **View full evidence** link inside the template to see every merge request collected for that group. redp truncates long lists in the template view for readability, but the complete list is always available in the evidence panel.
+</Tip>
+
+## Template sections
+
+Each combined CMR template contains the following sections.
+
+<AccordionGroup>
+
+<Accordion title="Description">
+
+The description section summarizes what is being deployed and why. redp populates it with:
+
+- **Release version** — the Nova release identifier (e.g., `24.11.0`)
+- **Business capability scope** — the capabilities affected, derived from the Jira epics and components associated with the group
+- **Components included** — the list of Nova components covered by this CMR
+- **MR count** — the total number of GitLab merge requests included in the deployment
+
+You should review the description for accuracy before submitting the CMR. If a component's Jira linkage is incomplete, the business capability scope may be narrower than expected.
+
+</Accordion>
+
+<Accordion title="Change plan">
+
+The change plan is an ordered list of deployment steps generated from the rollout order and each component's deploy options. A typical change plan looks like:
+
+```
+Change plan — Group 2: payments-service + payments-db-migrator
+
+1. Confirm payments-service is healthy in staging (automated PDV check passed)
+2. Open change window. Notify #deployments channel.
+3. Deploy payments-db-migrator v2.4.1 to production
+   - Run migration: `kubectl apply -f db-migrator-job.yaml`
+   - Verify migration completion: check job status in Lens or via `kubectl get jobs`
+4. Deploy payments-service v3.11.0 to production
+   - Apply Helm chart: `helm upgrade payments-service ./charts/payments-service --values prod-values.yaml`
+   - Confirm pod rollout: `kubectl rollout status deployment/payments-service`
+5. Run post-deploy smoke tests (see Test plan, steps 1–3)
+6. Close change window. Update change record to Implemented.
+```
+
+redp generates the steps from component deploy metadata. If a component has deploy option annotations, those are reflected in the step detail. Review each step and adjust any environment-specific parameters before submitting.
+
+</Accordion>
+
+<Accordion title="Test plan">
+
+The test plan lists the validation steps that must pass before the CMR can be closed successfully. redp generates these steps from:
+
+- **Component validation requirements** declared in the component profile
+- **PDV (Post-Deployment Validation) checks** associated with each component
+- **Coordinate/validate dependencies** — if the group has a coordinated validation partner, the test plan includes the joint validation steps
+
+A test plan entry includes the validation action, the expected result, and the owner responsible for confirming the result. Example:
+
+```
+Test plan — Group 2: payments-service + payments-db-migrator
+
+1. Verify database migration applied cleanly
+   Expected: migration job exits 0; no schema errors in logs
+   Owner: Data Platform on-call
+
+2. Run payments-service health check endpoint
+   Expected: GET /health returns HTTP 200 with status: "ok"
+   Owner: Payments team lead
+
+3. Execute payments smoke test suite (payments-smoke-v3)
+   Expected: all 47 test cases pass; p95 latency < 300 ms
+   Owner: QA automation (automated)
+
+4. Confirm downstream notification-worker is receiving payment events
+   Expected: event consumer lag < 100 messages within 5 minutes of deploy
+   Owner: Platform engineering on-call
+```
+
+</Accordion>
+
+<Accordion title="Rollback plan">
+
+The rollback plan describes how to revert the deployment if the test plan fails or an incident is declared. redp generates rollback steps from each component's rollback mode and the rollback dependency analysis.
+
+<Warning>
+  If a group contains one or more **forward-fix-only** components, the rollback plan for those components will explicitly state that rollback is not available. A forward-fix-only component must be remediated by issuing a new release. Do not attempt to roll back a forward-fix-only component — doing so may leave dependent components in an inconsistent state.
+</Warning>
+
+For components with a **standard** rollback mode, the plan includes the revert commands or Helm rollback steps. For components with a **coordinated** rollback mode, the plan includes the coordination steps required with dependent teams before reverting.
+
+Example rollback plan for a group with mixed rollback modes:
+
+```
+Rollback plan — Group 2: payments-service + payments-db-migrator
+
+payments-service (rollback mode: standard)
+1. Roll back Helm release: `helm rollback payments-service 1`
+2. Confirm pod rollout of previous version: `kubectl rollout status deployment/payments-service`
+3. Re-run smoke tests to confirm previous version is stable
+
+payments-db-migrator (rollback mode: forward-fix-only)
+⚠ Rollback not available. The database migration applied by payments-db-migrator v2.4.1
+  cannot be reversed automatically. If rollback of payments-service is required, the
+  application must be compatible with the migrated schema, or a compensating migration
+  must be issued as a new release.
+  Contact: Data Platform on-call before taking any revert action.
+```
+
+</Accordion>
+
+<Accordion title="MR list">
+
+The MR list section enumerates the GitLab merge requests included in the deployment group. redp collects MRs from the evidence chains associated with each component's Jira tickets. The list is formatted for direct inclusion in your change management system:
+
+```
+MR list — Group 2: payments-service + payments-db-migrator
+
+payments-service
+  - gitlab.example.com/nova/payments-service/-/merge_requests/1042  [MERGED]
+    "feat: add idempotency key support to payment intents"
+  - gitlab.example.com/nova/payments-service/-/merge_requests/1038  [MERGED]
+    "fix: correct currency rounding for JPY transactions"
+
+payments-db-migrator
+  - gitlab.example.com/nova/payments-db-migrator/-/merge_requests/204  [MERGED]
+    "migration: add idempotency_key column to payment_intents table"
+```
+
+If the MR list is truncated in the template view, click the **View full evidence** link to open the complete evidence panel for the group.
+
+</Accordion>
+
+<Accordion title="Owner acknowledgement">
+
+The owner acknowledgement section lists the individuals who must sign off on the CMR before it can be submitted for approval. redp derives the required owners from the component profiles and the approval rules configured for the release.
+
+Typical acknowledgement requirements include:
+
+- **Component owner** — the team or individual responsible for each component in the group
+- **Release manager** — the release manager running the deployment
+- **Risk reviewer** — required for groups with a risk level of HIGH or CRITICAL
+- **Conditional approver** — required when the group carries an unresolved condition
+
+Each owner must acknowledge the CMR by the deadline specified in the release schedule. A CMR with outstanding acknowledgements cannot be submitted.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Copying and downloading templates
+
+Use the **Copy** button at the top of each template card to copy the full template text to your clipboard. Use the **Download** button to save the template as a `.txt` file. Both options are available in the CMR Strategy section of the release report.
+
+If you need to regenerate a template after updating component evidence, refresh the release report and the templates will reflect the updated evidence automatically.

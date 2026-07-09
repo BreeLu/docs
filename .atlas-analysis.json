@@ -1,13 +1,11 @@
 {
-  "$schema": "https://mintlify.com/docs.json",
+  "projectType": "saas",
+  "projectName": "redp",
+  "projectDescription": "redp is a release deployment platform that helps release managers plan, track, and approve Nova releases with structured guideline reports, CMR strategies, and rollback analysis.",
   "theme": "luma",
-  "name": "redp",
-  "colors": {
-    "primary": "#ef7025",
-    "light": "#eec9bc",
-    "dark": "#4fa1ab"
-  },
-  "favicon": "/favicon.svg",
+  "primaryColor": "#ef7025",
+  "lightColor": "#eec9bc",
+  "darkColor": "#4fa1ab",
   "navigation": {
     "tabs": [
       {
@@ -81,14 +79,31 @@
       }
     ]
   },
-  "navbar": {
-    "primary": {
-      "type": "button",
-      "label": "Open redp",
-      "href": "https://redp.app"
-    }
-  },
-  "footer": {
-    "socials": {}
-  }
+  "keyFeatures": [
+    "Nova release guideline report generation",
+    "Deterministic GO / CONDITIONAL_GO / NO_GO approval decisions",
+    "AI-assisted release summary with source traceability",
+    "CMR grouping and combined CMR template generation",
+    "Rollback dependency analysis",
+    "Jira and GitLab evidence collection",
+    "Component relationship and risk tier modeling",
+    "Evidence quality metrics and coverage reporting",
+    "Waiver and owner sign-off tracking",
+    "Phase rollout plan and step status tracking"
+  ],
+  "publicApiSurface": [
+    "POST /guideline-reports — create guideline report",
+    "GET /guideline-reports — list guideline reports",
+    "GET /guideline-reports/:id — get report detail",
+    "POST /guideline-reports/:id/refresh — refresh guideline report",
+    "POST /guideline-reports/:id/cancel — cancel guideline report",
+    "result_json.metadata",
+    "result_json.decision (GO | CONDITIONAL_GO | NO_GO | UNKNOWN)",
+    "result_json.blockers",
+    "result_json.releaseScope",
+    "result_json.cmrRecommendations",
+    "result_json.rollbackDependencies",
+    "result_json.evidenceQuality",
+    "result_json.aiSummary"
+  ]
 }

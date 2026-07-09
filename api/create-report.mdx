@@ -1,0 +1,124 @@
+---
+title: "POST /guideline-reports — Create a Nova Guideline Report"
+sidebarTitle: "Create Report"
+description: "POST /guideline-reports — triggers generation of a Nova release guideline report. Accepts projectId, releaseId, scope, and optional componentIds."
+---
+
+Use this endpoint to trigger a new guideline report for a Nova release. The API queues a background job that collects evidence from Jira and GitLab, evaluates each release guideline, and produces a structured `result_json` with a deployment decision, blockers, and CMR recommendations. The response returns immediately with a report ID and a `queued` status — use [Get Report](/api/get-report) to poll for the completed result.
+
+**Endpoint**
+
+```
+POST https://redp.app/api/v1/guideline-reports
+```
+
+## Request Headers
+
+<ParamField header="Authorization" type="string" required>
+  Bearer token used to authenticate the request. Format: `Bearer <your-token>`.
+</ParamField>
+
+<ParamField header="Content-Type" type="string">
+  Must be `application/json`.
+</ParamField>
+
+## Request Body
+
+<ParamField body="projectId" type="string" required>
+  The Nova project ID. All evidence collection and guideline evaluation is scoped to this project.
+</ParamField>
+
+<ParamField body="releaseId" type="string" required>
+  The release ID to generate the report for. Required if `version` is not provided.
+</ParamField>
+
+<ParamField body="version" type="string" required>
+  The release version string (for example, `"2024.11.0"`). Required if `releaseId` is not provided. When both are supplied, `releaseId` takes precedence.
+</ParamField>
+
+<ParamField body="scope" type="string" required>
+  Controls which components are included in the report. Accepted values:
+
+  - `all` — include every component in the release
+  - `custom` — include only the component IDs listed in `componentIds`
+</ParamField>
+
+<ParamField body="componentIds" type="array">
+  An array of component ID strings. Required when `scope` is `custom`; ignored when `scope` is `all`.
+</ParamField>
+
+<ParamField body="forceRefresh" type="boolean">
+  When `true`, redp discards any cached Jira tickets and GitLab MR diffs and re-collects all evidence from source systems. Defaults to `false`.
+</ParamField>
+
+<ParamField body="generatedBy" type="string">
+  A user identifier (for example, an email address or username) recorded in the report for audit logging purposes.
+</ParamField>
+
+## Example Request
+
+```bash
+curl -X POST https://redp.app/api/v1/guideline-reports \
+  -H "Authorization: Bearer <your-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "projectId": "nova-platform",
+    "releaseId": "rel-2024-11-0",
+    "scope": "custom",
+    "componentIds": ["api-gateway", "auth-service"],
+    "forceRefresh": false,
+    "generatedBy": "jane.doe@example.com"
+  }'
+```
+
+## Response — 201 Created
+
+The report job has been accepted and queued. Poll [GET /guideline-reports/:id](/api/get-report) until `status` is `done` or `failed`.
+
+```json
+{
+  "id": "rpt_01hx4k9m2n3p5q7r",
+  "status": "queued",
+  "projectId": "nova-platform",
+  "releaseId": "rel-2024-11-0",
+  "version": "2024.11.0",
+  "scope": "custom",
+  "createdAt": "2024-11-14T09:32:00Z"
+}
+```
+
+<ResponseField name="id" type="string">
+  Unique identifier for the report. Use this ID to retrieve or refresh the report.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Current job state. On creation this is always `queued`. Progresses through `running` before reaching a terminal state: `done`, `failed`, or `cancelled`.
+</ResponseField>
+
+<ResponseField name="projectId" type="string">
+  The Nova project ID supplied in the request.
+</ResponseField>
+
+<ResponseField name="releaseId" type="string">
+  The release ID associated with this report.
+</ResponseField>
+
+<ResponseField name="version" type="string">
+  The resolved release version string.
+</ResponseField>
+
+<ResponseField name="scope" type="string">
+  The component scope used for this report: `all` or `custom`.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string">
+  ISO 8601 timestamp recording when the report job was created.
+</ResponseField>
+
+## Error Responses
+
+| Status | Meaning |
+|--------|---------|
+| `400 Bad Request` | One or more required fields are missing or invalid. The response body includes a `message` field describing the validation error. |
+| `401 Unauthorized` | The `Authorization` header is missing or the token is invalid. |
+| `404 Not Found` | The specified `projectId` or `releaseId` does not exist. |

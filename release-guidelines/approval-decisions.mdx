@@ -1,0 +1,49 @@
+---
+title: "Understanding Approval Decisions: GO, CONDITIONAL_GO, NO_GO"
+sidebarTitle: "Approval Decisions"
+description: "Learn how redp produces GO, CONDITIONAL_GO, NO_GO, and UNKNOWN decisions from deterministic rules and evidence."
+---
+
+The approval decision in a guideline report is produced by a deterministic rule evaluator — not by AI. redp evaluates each approval rule against the collected evidence and applies fixed logic to derive the result. Every rule either passes, raises a condition, or raises a blocker. The overall decision is the most severe outcome across all rules. This means that given the same evidence and the same rule set, redp will always produce the same decision: the process is reproducible and auditable.
+
+The AI summary that appears in the report explains the evaluator's output in plain language, but it plays no role in determining the decision. If the AI summary and the decision detail ever seem to conflict, trust the decision detail.
+
+<Tip>
+  If your report shows UNKNOWN, go to the **Evidence quality** section of the report first. Low quality scores for one or more components usually explain why there was not enough evidence to evaluate the rules. Fix the evidence gaps and regenerate the report with `forceRefresh` set to `true`.
+</Tip>
+
+## Decision values
+
+<Accordion title="GO — release approved to proceed">
+  All approval rules passed against the collected evidence. No blockers and no unresolved conditions exist for any component in scope.
+
+  A GO decision means redp found no issues that prevent or qualify the release. You can proceed with the rollout according to your deploy plan. Review the report's known issues section anyway — known issues are tracked separately from rule evaluation and may still require attention even when the overall decision is GO.
+</Accordion>
+
+<Accordion title="CONDITIONAL_GO — release can proceed after required actions are completed">
+  One or more approval rules raised conditions. No rules raised blockers. The release is not unconditionally approved, but it is not blocked either.
+
+  A CONDITIONAL_GO decision means something still needs to happen before the release is fully cleared. Each condition comes with one or more required actions describing exactly what must be completed. Work through each required action, then re-evaluate or seek owner sign-off to clear the condition. See [Blockers & Conditions](./blockers-and-conditions) for details on reading and resolving conditions.
+
+  **CONDITIONAL_GO with waiver:** A release manager or owner can waive one or more conditions. When a condition is waived, it is marked as accepted rather than resolved, and the waiver is recorded in the report — including who approved it and when. A fully waived CONDITIONAL_GO is treated as approved for release purposes, but the waiver record remains visible in the report for audit.
+</Accordion>
+
+<Accordion title="NO_GO — release must not proceed">
+  One or more approval rules raised blockers. Blockers represent issues that make it unsafe or non-compliant to release in the current state.
+
+  A NO_GO decision means the release must not proceed until every blocker is resolved. Waivers are generally not available for blockers — a blocking issue must be fixed in the underlying artefacts (Jira tickets, MRs, or configurations) and the report regenerated. In exceptional circumstances, a release manager can grant an exception, but this must be handled outside redp and documented separately. Once all blockers are resolved, regenerate the report and confirm the decision has changed.
+</Accordion>
+
+<Accordion title="UNKNOWN — insufficient evidence to evaluate">
+  redp could not collect enough evidence to evaluate one or more approval rules. This typically means evidence collection partially failed, the Jira or GitLab data for a component is missing or inaccessible, or evidence quality scores are too low for the evaluator to make a reliable determination.
+
+  Treat UNKNOWN as NO_GO — do not proceed with the release until the evidence gaps are resolved. Check the **Evidence quality** section and the **Evidence chains** section to identify which components have missing or low-quality evidence. Address the gaps (update tickets, ensure MRs are linked, check access permissions) and regenerate the report using `forceRefresh`.
+</Accordion>
+
+## Waivers and owner sign-off
+
+**Waivers** allow a release manager or release owner to formally accept a condition without completing the required action. A waiver is appropriate when the required action is not achievable before the release window, the risk has been assessed and accepted, and accountability is recorded. To add a waiver, open the condition in the report and use the **Waive** action — you will be prompted to provide a justification. The waiver records your identity, the timestamp, and the justification alongside the condition.
+
+**Owner sign-off** is a lighter-weight acknowledgement that clears a condition by confirming the component owner has reviewed and accepted the associated risk. Sign-off is recorded in the same way as a waiver and appears in the report's approval decision detail section. Once all conditions on a CONDITIONAL_GO report are either resolved, waived, or signed off, the report reflects a cleared state and the release can proceed.
+
+Neither waivers nor sign-offs affect blocker-level findings — only resolved blockers change a NO_GO decision.

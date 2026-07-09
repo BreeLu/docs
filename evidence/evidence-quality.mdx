@@ -1,0 +1,80 @@
+---
+title: "Evidence Quality Metrics in Release Guideline Reports"
+sidebarTitle: "Evidence Quality"
+description: "How to read the evidence quality section in redp — ticket coverage, MR diff success rates, and unresolved MR samples."
+---
+
+The evidence quality section of a guideline report tells you how complete and reliable the underlying data is. A report's `GO`, `CONDITIONAL_GO`, or `NO_GO` decision is only as trustworthy as the evidence behind it — so even when the overall decision looks favorable, you should review evidence quality to confirm the report had enough data to reach that conclusion with confidence.
+
+## Metrics reference
+
+Each guideline report includes the following evidence quality metrics:
+
+| Metric | What It Measures | Impact |
+|---|---|---|
+| **Tickets in scope** | Total Jira tickets matched by the release JQL | A low count may indicate JQL misconfiguration or a mismatched fix version |
+| **Tickets with MR links** | Percentage of in-scope tickets that have at least one GitLab MR URL | A low percentage may trigger an evidence risk flag and contribute to a `CONDITIONAL_GO` decision |
+| **MR diff fetch success** | Percentage of discovered MR diffs that were successfully retrieved from GitLab | A low percentage may produce a `CONDITIONAL_GO` or limit the depth of change analysis |
+| **Unresolved MR references** | MR URLs found in Jira that could not be fetched from GitLab | A sample of unresolved URLs is shown; investigate each one to determine the root cause |
+
+## Evidence status values
+
+Each piece of evidence in the report carries a status that describes the outcome of its collection attempt:
+
+<AccordionGroup>
+  <Accordion title="FOUND">
+    The evidence was collected successfully and is complete. redp was able to reach the source, retrieve the data, and normalize it without errors.
+  </Accordion>
+  <Accordion title="MISSING">
+    The evidence was expected but not found. For example, a release JQL returned zero tickets, or a ticket had no description or comments containing MR links. `MISSING` indicates the data does not exist in the source system, not that collection failed.
+  </Accordion>
+  <Accordion title="PARTIAL">
+    Some evidence was collected but not all. For example, an MR detail record was retrieved but the diff fetch failed. The report uses whatever was collected and notes the gap.
+  </Accordion>
+  <Accordion title="FETCH_FAILED">
+    redp attempted to collect evidence from an external source and the request failed. Common causes include token expiry, rate limiting, insufficient permissions, or network errors. The report continues generating with other available evidence.
+  </Accordion>
+</AccordionGroup>
+
+## How evidence quality affects approval decisions
+
+Evidence quality directly influences the confidence of the report's decision. redp applies the following logic:
+
+**Low MR coverage → evidence risk → CONDITIONAL_GO**
+
+If fewer tickets than expected have MR links, redp cannot verify the code changes behind the release. The report flags this as an evidence risk and may issue a `CONDITIONAL_GO` rather than a clean `GO`. The condition will specify that MR coverage must be confirmed before approval.
+
+**FETCH_FAILED on critical components → CONDITIONAL_GO or UNKNOWN**
+
+If MR diffs for high-risk or critical components could not be fetched, redp cannot fully evaluate the change scope for those components. Depending on how many components are affected, the decision may be downgraded to `CONDITIONAL_GO` or `UNKNOWN`. An `UNKNOWN` outcome means redp does not have enough data to make any recommendation.
+
+**Widespread FETCH_FAILED → unreliable decision**
+
+If a large proportion of evidence sources failed, any decision produced by the report — including `GO` — should be treated with caution. The report may appear favorable simply because it lacked the data to surface risks.
+
+<Note>
+  Evidence quality is visible even when the overall decision is `GO`. Always review the evidence quality section to confirm the report had sufficient coverage before proceeding with an approval.
+</Note>
+
+## Improving evidence quality
+
+If evidence quality is lower than expected, take the following steps:
+
+<Steps>
+  <Step title="Identify failing sources">
+    Open the evidence quality section and note which metrics are low or which sources show `FETCH_FAILED` status.
+  </Step>
+  <Step title="Fix Jira access">
+    Verify that the configured Jira token has read access to the project and that the release JQL is correctly defined for this release.
+  </Step>
+  <Step title="Fix GitLab access">
+    Verify that the GitLab token has `read_api` scope for all component repositories included in the release.
+  </Step>
+  <Step title="Regenerate with forceRefresh">
+    Once access issues are resolved, regenerate the report with `forceRefresh=true` to discard cached evidence and re-collect from all sources.
+  </Step>
+</Steps>
+
+<Tip>
+  Use `forceRefresh=true` whenever you fix a Jira or GitLab access issue. Without it, redp may reuse cached evidence from the failed collection run and evidence quality metrics will not improve.
+</Tip>
